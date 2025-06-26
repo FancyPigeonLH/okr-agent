@@ -1,0 +1,113 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model OKRSet {
+  id          String   @id @default(cuid())
+  team        String
+  period      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relazioni
+  objectives  Objective[]
+  keyResults  KeyResult[]
+  risks       Risk[]
+  initiatives Initiative[]
+  messages    ChatMessage[]
+
+  @@map("okr_sets")
+}
+
+model Objective {
+  id              String @id @default(cuid())
+  title           String
+  description     String?
+  isQualitative   Boolean @default(true)
+  isTimeBound     Boolean @default(true)
+  isInspirational Boolean @default(true)
+  
+  // Relazioni
+  okrSetId        String
+  okrSet          OKRSet @relation(fields: [okrSetId], references: [id], onDelete: Cascade)
+  keyResults      KeyResult[]
+
+  @@map("objectives")
+}
+
+model KeyResult {
+  id            String @id @default(cuid())
+  title         String
+  target        String?
+  current       String?
+  unit          String?
+  isQuantitative Boolean @default(true)
+  isMeasurable  Boolean @default(true)
+  isSpecific    Boolean @default(true)
+  isAmbitious   Boolean @default(true)
+  
+  // Relazioni
+  objectiveId   String
+  objective     Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  initiatives   Initiative[]
+
+  @@map("key_results")
+}
+
+model Risk {
+  id          String @id @default(cuid())
+  title       String
+  description String
+  probability String @default("medium") // low, medium, high
+  impact      String @default("medium") // low, medium, high
+  mitigation  String?
+  isExternal  Boolean @default(false)
+  isInternal  Boolean @default(true)
+  
+  // Relazioni
+  okrSetId    String
+  okrSet      OKRSet @relation(fields: [okrSetId], references: [id], onDelete: Cascade)
+
+  @@map("risks")
+}
+
+model Initiative {
+  id          String @id @default(cuid())
+  title       String
+  description String?
+  status      String @default("not_started") // not_started, in_progress, completed
+  priority    String @default("medium") // low, medium, high
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  // Relazioni
+  keyResultId String
+  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+
+  @@map("initiatives")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  role      String   // user, assistant
+  content   String
+  timestamp DateTime @default(now())
+  
+  // Relazioni
+  okrSetId  String?
+  okrSet    OKRSet? @relation(fields: [okrSetId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}

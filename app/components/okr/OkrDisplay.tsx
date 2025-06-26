@@ -1,0 +1,195 @@
+'use client'
+
+import { OKRSet } from '@/app/types/okr'
+import { Button } from '@/app/components/ui/button'
+import { Copy, Check } from 'lucide-react'
+import { useState } from 'react'
+
+interface OkrDisplayProps {
+  okrSet: OKRSet
+}
+
+export function OkrDisplay({ okrSet }: OkrDisplayProps) {
+  const [copiedItems, setCopiedItems] = useState<Set<string>>(new Set())
+
+  const copyToClipboard = async (text: string, itemId: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedItems(prev => new Set(prev).add(itemId))
+      setTimeout(() => {
+        setCopiedItems(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(itemId)
+          return newSet
+        })
+      }, 2000)
+    } catch (error) {
+      console.error('Errore nella copia:', error)
+    }
+  }
+
+  const CopyButton = ({ text, itemId }: { text: string; itemId: string }) => (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => copyToClipboard(text, itemId)}
+      className="ml-2 h-8 w-8 p-0"
+    >
+      {copiedItems.has(itemId) ? (
+        <Check className="h-4 w-4 text-green-600" />
+      ) : (
+        <Copy className="h-4 w-4" />
+      )}
+    </Button>
+  )
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="border-b pb-4">
+        <h2 className="text-2xl font-bold">OKR - {okrSet.team}</h2>
+        <p className="text-muted-foreground">Periodo: {okrSet.period}</p>
+      </div>
+
+      {/* Objectives */}
+      <div className="space-y-4">
+        <h3 className="text-xl font-semibold text-blue-600">Objectives</h3>
+        {okrSet.objectives.map((objective) => (
+          <div key={objective.id} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-900">{objective.title}</h4>
+                {objective.description && (
+                  <p className="text-sm text-blue-700 mt-1">{objective.description}</p>
+                )}
+              </div>
+              <CopyButton text={objective.title} itemId={objective.id} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Key Results */}
+      <div className="space-y-4">
+        <h3 className="text-xl font-semibold text-green-600">Key Results</h3>
+        {okrSet.objectives.map((objective) => {
+          const keyResults = okrSet.keyResults.filter(kr => kr.objectiveId === objective.id)
+          return (
+            <div key={objective.id} className="space-y-3">
+              <h4 className="font-medium text-gray-700">{objective.title}</h4>
+              {keyResults.map((keyResult) => (
+                <div key={keyResult.id} className="bg-green-50 border border-green-200 rounded-lg p-4 ml-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h5 className="font-medium text-green-900">{keyResult.title}</h5>
+                      <div className="flex gap-4 mt-2 text-sm text-green-700">
+                        <span>Target: {keyResult.target}</span>
+                        <span>Attuale: {keyResult.current}</span>
+                        <span>Unità: {keyResult.unit}</span>
+                      </div>
+                    </div>
+                    <CopyButton text={keyResult.title} itemId={keyResult.id} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Risks */}
+      {okrSet.risks.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-xl font-semibold text-red-600">Rischi</h3>
+          {okrSet.risks.map((risk) => (
+            <div key={risk.id} className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h4 className="font-medium text-red-900">{risk.title}</h4>
+                  <p className="text-sm text-red-700 mt-1">{risk.description}</p>
+                  <div className="flex gap-4 mt-2 text-sm text-red-600">
+                    <span>Probabilità: {risk.probability}</span>
+                    <span>Impatto: {risk.impact}</span>
+                  </div>
+                  {risk.mitigation && (
+                    <p className="text-sm text-red-600 mt-2">
+                      <strong>Mitigazione:</strong> {risk.mitigation}
+                    </p>
+                  )}
+                </div>
+                <CopyButton text={risk.title} itemId={risk.id} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Initiatives */}
+      {okrSet.initiatives.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-xl font-semibold text-purple-600">Iniziative</h3>
+          {okrSet.keyResults.map((keyResult) => {
+            const initiatives = okrSet.initiatives.filter(init => init.keyResultId === keyResult.id)
+            return (
+              <div key={keyResult.id} className="space-y-3">
+                <h4 className="font-medium text-gray-700">{keyResult.title}</h4>
+                {initiatives.map((initiative) => (
+                  <div key={initiative.id} className="bg-purple-50 border border-purple-200 rounded-lg p-4 ml-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h5 className="font-medium text-purple-900">{initiative.title}</h5>
+                        {initiative.description && (
+                          <p className="text-sm text-purple-700 mt-1">{initiative.description}</p>
+                        )}
+                        <div className="flex gap-4 mt-2 text-sm text-purple-600">
+                          <span>Priorità: {initiative.priority}</span>
+                          <span>Stato: {initiative.status}</span>
+                        </div>
+                      </div>
+                      <CopyButton text={initiative.title} itemId={initiative.id} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Export YAML */}
+      <div className="border-t pt-4">
+        <Button
+          onClick={() => {
+            const yamlContent = `# OKR - ${okrSet.team} (${okrSet.period})
+
+objectives:
+${okrSet.objectives.map(obj => `  - title: "${obj.title}"`).join('\n')}
+
+key_results:
+${okrSet.keyResults.map(kr => `  - title: "${kr.title}"`).join('\n')}
+
+risks:
+${okrSet.risks.map(risk => `  - title: "${risk.title}"`).join('\n')}
+
+initiatives:
+${okrSet.initiatives.map(init => `  - title: "${init.title}"`).join('\n')}`
+            copyToClipboard(yamlContent, 'yaml-export')
+          }}
+          className="w-full"
+        >
+          {copiedItems.has('yaml-export') ? (
+            <>
+              <Check className="h-4 w-4 mr-2" />
+              YAML Copiato!
+            </>
+          ) : (
+            <>
+              <Copy className="h-4 w-4 mr-2" />
+              Esporta YAML
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+} 
