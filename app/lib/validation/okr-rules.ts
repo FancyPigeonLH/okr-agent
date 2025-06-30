@@ -16,6 +16,7 @@ export const LINKHUB_RULES = {
     mustBeMeasurable: true,
     mustBeSpecific: true,
     mustBeAmbitious: true,
+    forbiddenVerbs: ['aumentare', 'migliorare', 'ridurre', 'ottimizzare', 'espandere', 'consolidare', 'innovare'],
     requiredPatterns: [
       /\d+/, // deve contenere numeri
       /(percentuale|%|€|\$|numero|totale|quantità)/i // deve essere quantitativo
@@ -24,15 +25,16 @@ export const LINKHUB_RULES = {
   risks: {
     minPerOKR: 2,
     maxPerOKR: 5,
-    mustHaveMitigation: true,
+    mustHaveMitigation: false,
     mustBeRelevant: true,
     format: 'if-then' // formato "se...allora..."
   },
   initiatives: {
-    minPerKeyResult: 1,
-    maxPerKeyResult: 3,
+    minPerRisk: 1,
+    maxPerRisk: 3,
     mustBeActionable: true,
-    mustBeSpecific: true
+    mustBeSpecific: true,
+    mustBeMitigative: true
   }
 }
 
@@ -91,6 +93,14 @@ export function validateKeyResult(keyResult: KeyResult): ValidationResult {
     errors.push('Il Key Result deve essere misurabile e specifico')
   }
 
+  // Controllo verbi all'infinito non permessi
+  const hasInfinitiveVerb = LINKHUB_RULES.keyResults.forbiddenVerbs.some(verb => 
+    keyResult.title.toLowerCase().includes(verb)
+  )
+  if (hasInfinitiveVerb) {
+    errors.push('Il Key Result deve essere espresso come nome di metrica (es: "Produzione giornaliera" e NON "Aumentare la produzione giornaliera")')
+  }
+
   // Controllo ambizione (valori realistici ma sfidanti)
   const numbers = keyResult.title.match(/\d+/g)
   if (numbers) {
@@ -122,9 +132,9 @@ export function validateRisk(risk: Risk): ValidationResult {
     warnings.push('Il rischio dovrebbe essere formulato come "se...allora..."')
   }
 
-  // Controllo mitigazione
-  if (!risk.mitigation || risk.mitigation.trim().length < 10) {
-    errors.push('Il rischio deve avere una strategia di mitigazione')
+  // Controllo lunghezza descrizione
+  if (risk.description.trim().length < 10) {
+    errors.push('La descrizione del rischio deve essere dettagliata')
   }
 
   return {
@@ -181,12 +191,16 @@ export function validateOKRSet(okrSet: OKRSet): ValidationResult {
     warnings.push(`Dovrebbero essere identificati almeno ${LINKHUB_RULES.risks.minPerOKR} rischi`)
   }
 
-  // Controllo numero di Iniziative per Key Result
-  okrSet.keyResults.forEach(keyResult => {
-    const initiativesForKR = okrSet.initiatives.filter(init => init.keyResultId === keyResult.id)
+  // Controllo numero di Iniziative per Rischio
+  okrSet.risks.forEach(risk => {
+    const initiativesForRisk = okrSet.initiatives.filter(init => init.riskId === risk.id)
     
-    if (initiativesForKR.length < LINKHUB_RULES.initiatives.minPerKeyResult) {
-      warnings.push(`Il Key Result "${keyResult.title}" dovrebbe avere almeno ${LINKHUB_RULES.initiatives.minPerKeyResult} iniziativa`)
+    if (initiativesForRisk.length < LINKHUB_RULES.initiatives.minPerRisk) {
+      errors.push(`Il Rischio "${risk.title}" deve avere almeno ${LINKHUB_RULES.initiatives.minPerRisk} iniziativa mitigativa`)
+    }
+
+    if (initiativesForRisk.length > LINKHUB_RULES.initiatives.maxPerRisk) {
+      warnings.push(`Il Rischio "${risk.title}" ha troppe iniziative (max ${LINKHUB_RULES.initiatives.maxPerRisk})`)
     }
   })
 

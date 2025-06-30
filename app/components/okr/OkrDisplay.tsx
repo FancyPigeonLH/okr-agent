@@ -111,11 +111,6 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
                     <span>Probabilità: {risk.probability}</span>
                     <span>Impatto: {risk.impact}</span>
                   </div>
-                  {risk.mitigation && (
-                    <p className="text-sm text-red-600 mt-2">
-                      <strong>Mitigazione:</strong> {risk.mitigation}
-                    </p>
-                  )}
                 </div>
                 <CopyButton text={risk.title} itemId={risk.id} />
               </div>
@@ -128,11 +123,12 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
       {okrSet.initiatives.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-purple-600">Iniziative</h3>
-          {okrSet.keyResults.map((keyResult) => {
-            const initiatives = okrSet.initiatives.filter(init => init.keyResultId === keyResult.id)
+          {okrSet.risks.map((risk) => {
+            const initiatives = okrSet.initiatives.filter(init => init.riskId === risk.id)
+            if (initiatives.length === 0) return null
             return (
-              <div key={keyResult.id} className="space-y-3">
-                <h4 className="font-medium text-gray-700">{keyResult.title}</h4>
+              <div key={risk.id} className="space-y-3">
+                <h4 className="font-medium text-gray-700">{risk.title}</h4>
                 {initiatives.map((initiative) => (
                   <div key={initiative.id} className="bg-purple-50 border border-purple-200 rounded-lg p-4 ml-4">
                     <div className="flex items-start justify-between">

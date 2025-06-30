@@ -4,8 +4,13 @@ import { OKRSet, ValidationResult } from '@/app/types/okr'
 import { validateOKRSet } from '@/app/lib/validation/okr-rules'
 import yaml from 'js-yaml'
 
+// Verifica la presenza della API key
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error('GEMINI_API_KEY non trovata nel file .env. Assicurati di averla configurata correttamente.')
+}
+
 // Inizializza Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
 export class OKRGenerator {
   private model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
@@ -144,17 +149,17 @@ export class OKRGenerator {
         description: risk.description,
         probability: risk.probability || 'medium',
         impact: risk.impact || 'medium',
-        mitigation: risk.mitigation || '',
         isExternal: risk.is_external || false,
         isInternal: !risk.is_external
       })),
       initiatives: (data.initiatives || []).map((init: any, index: number) => ({
         id: init.id || `init_${index + 1}`,
-        keyResultId: init.key_result_id,
+        riskId: init.risk_id,
         title: init.title,
         description: init.description || '',
         status: init.status || 'not_started',
-        priority: init.priority || 'medium'
+        priority: init.priority || 'medium',
+        isMitigative: true
       })),
       createdAt: now,
       updatedAt: now
@@ -182,12 +187,11 @@ export class OKRGenerator {
         description: risk.description,
         probability: risk.probability,
         impact: risk.impact,
-        mitigation: risk.mitigation,
         is_external: risk.isExternal
       })),
       initiatives: okrSet.initiatives.map(init => ({
         id: init.id,
-        key_result_id: init.keyResultId,
+        risk_id: init.riskId,
         title: init.title,
         description: init.description,
         priority: init.priority,

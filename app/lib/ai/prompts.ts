@@ -9,13 +9,15 @@ export const LINKHUB_RULES_PROMPT = `
 2. I Key Results devono essere quantitativi, misurabili, specifici e ambiziosi (metodo SMART).
 3. Almeno 3 Key Results per ogni Objective.
 4. I Rischi devono essere esterni o interni, e devono impattare direttamente il raggiungimento degli OKR.
-5. Le Iniziative sono le azioni concrete per raggiungere i Key Results.
+5. Le Iniziative sono azioni mitigative concrete per gestire i Rischi identificati.
 6. Il formato dell'output deve essere YAML per facilitare l'importazione.
 7. Ogni elemento deve essere giustificato brevemente.
 8. Gli Objectives NON devono contenere numeri o quantità (sono per i Key Results).
 9. I Key Results DEVONO contenere numeri, percentuali o metriche specifiche.
-10. I Rischi devono essere formulati come "se...allora..." con strategia di mitigazione.
-11. Le Iniziative devono essere azioni concrete e specifiche.
+10. I Key Results devono essere espressi come nomi di metriche (es: "Produzione giornaliera" e NON "Aumentare la produzione giornaliera").
+11. I Rischi devono essere formulati come "se...allora..." con strategia di mitigazione.
+12. Le Iniziative devono essere derivate direttamente dai Rischi, descrivendo azioni concrete per mitigarli.
+13. Ogni Iniziativa deve avere una descrizione chiara che spiega come l'azione mitiga il rischio associato.
 `
 
 export function generateInitialPrompt(userRequest: string, context: {
@@ -45,25 +47,24 @@ objectives:
 key_results:
   - id: kr_1
     objective_id: obj_1
-    title: "Key Result quantitativo e misurabile"
+    title: "Produzione giornaliera"
     target: "valore target"
     current: "valore attuale"
     unit: "unità di misura"
 
 risks:
   - id: risk_1
-    title: "Titolo del rischio"
-    description: "Se [condizione] allora [conseguenza]"
+    title: "Ritardi nell'ottenimento delle autorizzazioni"
+    description: "Se non otteniamo le necessarie autorizzazioni entro il Q1 2024, allora il lancio nel mercato sarà ritardato"
     probability: "medium"
     impact: "high"
-    mitigation: "Strategia di mitigazione"
     is_external: true
 
 initiatives:
   - id: init_1
-    key_result_id: kr_1
-    title: "Iniziativa specifica e azionabile"
-    description: "Descrizione dettagliata"
+    risk_id: risk_1
+    title: "Piano di gestione autorizzazioni"
+    description: "Implementare un sistema di monitoraggio proattivo delle scadenze e requisiti normativi, con alert anticipati e procedure di escalation"
     priority: "high"
     status: "not_started"
 

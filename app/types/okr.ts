@@ -26,20 +26,20 @@ export interface Risk {
   description: string
   probability: 'low' | 'medium' | 'high'
   impact: 'low' | 'medium' | 'high'
-  mitigation: string
   isExternal: boolean
   isInternal: boolean
 }
 
 export interface Initiative {
   id: string
-  keyResultId: string
+  riskId: string
   title: string
   description: string
   status: 'not_started' | 'in_progress' | 'completed'
   priority: 'low' | 'medium' | 'high'
   startDate?: Date
   endDate?: Date
+  isMitigative: boolean
 }
 
 export interface OKRSet {
