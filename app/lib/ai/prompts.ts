@@ -37,6 +37,12 @@ ${context.objective ? `- Obiettivo fornito dall'utente: "${context.objective}"` 
 
 Richiesta dell'utente: ${userRequest}
 
+IMPORTANTE:
+1. Se è stato fornito un obiettivo nel contesto, DEVI utilizzarlo come base per l'Objective principale o adattarlo mantenendone l'essenza.
+2. Per OGNI Key Result DEVI generare almeno un Rischio associato.
+3. Per OGNI Rischio DEVI generare almeno un'Iniziativa di mitigazione.
+4. NON omettere mai Rischi e Iniziative dalla risposta.
+
 Genera una bozza di OKR, Key Results, Rischi e Iniziative seguendo rigorosamente le .linkhubrules.
 Fornisci l'output nel formato YAML con questa struttura:
 

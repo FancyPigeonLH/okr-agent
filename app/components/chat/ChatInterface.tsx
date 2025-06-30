@@ -28,6 +28,14 @@ export function ChatInterface() {
 
   const handleContextSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Genera la richiesta automatica basata sul contesto
+    let autoRequest = `Definisci OKR per il team ${context.team} nel periodo ${context.period}`
+    if (context.objective) {
+      autoRequest = `Definisci OKR per ${context.objective} per il team ${context.team} nel periodo ${context.period}`
+    }
+    
+    setInput(autoRequest)
     setShowSettings(false)
   }
 
