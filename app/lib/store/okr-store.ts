@@ -84,7 +84,11 @@ export const useOKRActions = () => {
         },
         body: JSON.stringify({
           userRequest,
-          context: store.context
+          context: {
+            team: store.context.team || '',
+            period: store.context.period || '',
+            objective: store.context.objective || undefined
+          }
         })
       })
       
@@ -117,8 +121,9 @@ export const useOKRActions = () => {
   
   const iterateOKR = async (userRequest: string) => {
     try {
-      store.setLoading(true)
+      // Reset parziale dello stato
       store.setError(null)
+      store.setLoading(true)
       
       if (!store.currentOKR) {
         throw new Error('Nessun OKR corrente da iterare')
@@ -130,13 +135,49 @@ export const useOKRActions = () => {
         content: userRequest
       })
       
+      // Semplifichiamo la struttura dei dati inviati
+      const simplifiedOKR = {
+        id: store.currentOKR.id,
+        team: store.currentOKR.team || '',
+        period: store.currentOKR.period || '',
+        objectives: store.currentOKR.objectives.map(obj => ({
+          id: obj.id,
+          title: obj.title,
+          description: obj.description || ''
+        })),
+        keyResults: store.currentOKR.keyResults.map(kr => ({
+          id: kr.id,
+          objectiveId: kr.objectiveId,
+          title: kr.title,
+          forecast: kr.forecast || '',
+          moon: kr.moon || '',
+          unit: kr.unit || ''
+        })),
+        risks: store.currentOKR.risks.map(risk => ({
+          id: risk.id,
+          keyResultId: risk.keyResultId,
+          title: risk.title,
+          description: risk.description || '',
+          probability: risk.probability || 'medium',
+          impact: risk.impact || 'medium'
+        })),
+        initiatives: store.currentOKR.initiatives.map(init => ({
+          id: init.id,
+          riskId: init.riskId,
+          title: init.title,
+          description: init.description || '',
+          priority: init.priority || 'medium',
+          status: init.status || 'not_started'
+        }))
+      }
+      
       const response = await fetch('/api/okr/iterate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          currentOKR: store.currentOKR,
+          currentOKR: simplifiedOKR,
           userRequest
         })
       })
@@ -144,7 +185,7 @@ export const useOKRActions = () => {
       const data = await response.json()
       
       if (!response.ok) {
-        throw new Error(data.error || 'Errore nell\'iterazione')
+        throw new Error(data.error || data.details || 'Errore nell\'iterazione')
       }
       
       // Aggiungi messaggio AI
@@ -158,6 +199,7 @@ export const useOKRActions = () => {
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto'
+      console.error('Errore nell\'iterazione:', errorMessage)
       store.setError(errorMessage)
       store.addMessage({
         role: 'assistant',

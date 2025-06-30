@@ -42,26 +42,25 @@ IMPORTANTE:
 2. Per OGNI Key Result DEVI generare almeno un Rischio associato.
 3. Per OGNI Rischio DEVI generare almeno un'Iniziativa di mitigazione.
 4. NON omettere mai Rischi e Iniziative dalla risposta.
+5. DEVI utilizzare ESATTAMENTE questa struttura YAML, con questi ESATTI nomi di campo:
 
-Genera una bozza di OKR, Key Results, Rischi e Iniziative seguendo rigorosamente le .linkhubrules.
-Fornisci l'output nel formato YAML con questa struttura:
-
+\`\`\`yaml
 objectives:
-  - id: obj_1
+  - id: "obj_1"
     title: "Titolo dell'Objective"
     description: "Descrizione qualitativa e ispirazionale"
 
 key_results:
-  - id: kr_1
-    objective_id: obj_1
+  - id: "kr_1"
+    objective_id: "obj_1"
     title: "Tempo medio di risoluzione degli incident"
     forecast: "30 minuti"
     moon: "15 minuti"
     unit: "minuti"
 
 risks:
-  - id: risk_1
-    key_result_id: kr_1
+  - id: "risk_1"
+    key_result_id: "kr_1"
     title: "Carenza di personale nel team di supporto"
     description: "Se non riusciamo a mantenere un team di supporto adeguatamente dimensionato, allora i tempi di risoluzione degli incident potrebbero aumentare"
     probability: "medium"
@@ -69,14 +68,24 @@ risks:
     is_external: false
 
 initiatives:
-  - id: init_1
-    risk_id: risk_1
+  - id: "init_1"
+    risk_id: "risk_1"
     title: "Piano di formazione cross-funzionale"
     description: "Implementare un programma di formazione che permetta ai membri di altri team di supportare la risoluzione degli incident di base"
     priority: "high"
     status: "not_started"
+\`\`\`
 
-Assicurati che ogni elemento rispetti le .linkhubrules.`
+ATTENZIONE:
+- I nomi dei campi DEVONO essere ESATTAMENTE come mostrato sopra
+- TUTTI i campi sono OBBLIGATORI
+- Gli ID devono seguire il formato mostrato (obj_X, kr_X, risk_X, init_X)
+- Le relazioni tra elementi devono essere mantenute usando gli ID corretti
+- NON aggiungere campi extra
+- NON modificare i nomi dei campi
+- NON omettere nessun campo
+
+Genera ora gli OKR seguendo RIGOROSAMENTE questa struttura e le .linkhubrules.`
 }
 
 export function generateCorrectionPrompt(
@@ -118,6 +127,49 @@ ${currentOKR}
 
 Richiesta di iterazione: ${userRequest}
 
-Modifica gli OKR esistenti secondo la richiesta dell'utente, mantenendo il rispetto delle .linkhubrules.
-Fornisci l'output nel formato YAML con la stessa struttura.`
+IMPORTANTE:
+1. DEVI mantenere la stessa struttura YAML dell'input
+2. DEVI mantenere gli stessi nomi dei campi
+3. DEVI includere TUTTI i campi, anche se non li modifichi
+4. Per OGNI Key Result DEVE esserci almeno un Rischio associato
+5. Per OGNI Rischio DEVE esserci almeno un'Iniziativa di mitigazione
+6. Gli ID devono seguire il formato mostrato (obj_X, kr_X, risk_X, init_X)
+7. Le relazioni tra elementi devono essere mantenute usando gli ID corretti
+
+La struttura YAML DEVE essere ESATTAMENTE questa:
+
+\`\`\`yaml
+objectives:
+  - id: "obj_1"
+    title: "Titolo dell'Objective"
+    description: "Descrizione qualitativa e ispirazionale"
+
+key_results:
+  - id: "kr_1"
+    objective_id: "obj_1"
+    title: "Titolo del Key Result"
+    forecast: "valore"
+    moon: "valore"
+    unit: "unità"
+
+risks:
+  - id: "risk_1"
+    key_result_id: "kr_1"
+    title: "Titolo del Rischio"
+    description: "Descrizione del rischio"
+    probability: "medium"
+    impact: "high"
+    is_external: false
+
+initiatives:
+  - id: "init_1"
+    risk_id: "risk_1"
+    title: "Titolo dell'Iniziativa"
+    description: "Descrizione dell'iniziativa"
+    priority: "high"
+    status: "not_started"
+\`\`\`
+
+Modifica gli OKR esistenti secondo la richiesta dell'utente, mantenendo il rispetto delle .linkhubrules e la struttura YAML esatta.
+NON omettere MAI nessuna sezione o campo.`
 } 

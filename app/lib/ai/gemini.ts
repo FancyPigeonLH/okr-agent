@@ -119,32 +119,119 @@ export class OKRGenerator {
   private parseYAMLToOKRSet(data: any, context: { team: string; period: string }): OKRSet {
     const now = new Date()
     
+    // Normalizza i dati in ingresso
+    const normalizedData = {
+      objectives: Array.isArray(data?.objectives) ? data.objectives : [],
+      key_results: Array.isArray(data?.key_results) ? data.key_results : [],
+      risks: Array.isArray(data?.risks) ? data.risks : [],
+      initiatives: Array.isArray(data?.initiatives) ? data.initiatives : []
+    }
+    
+    // Verifica la presenza di tutti i campi obbligatori
+    if (normalizedData.objectives.length === 0 || 
+        normalizedData.key_results.length === 0 || 
+        normalizedData.risks.length === 0 || 
+        normalizedData.initiatives.length === 0) {
+      throw new Error('YAML non valido: mancano campi obbligatori o array vuoti (objectives, key_results, risks, initiatives)')
+    }
+
+    // Verifica che ogni elemento abbia i campi richiesti
+    const validateFields = (item: any, requiredFields: string[], itemType: string) => {
+      const missingFields = requiredFields.filter(field => !item[field])
+      if (missingFields.length > 0) {
+        throw new Error(`Campo obbligatorio mancante in ${itemType}: ${missingFields.join(', ')}`)
+      }
+    }
+
+    // Valida ogni objective
+    normalizedData.objectives.forEach((obj: any) => {
+      validateFields(obj, ['id', 'title'], 'objective')
+    })
+
+    // Valida ogni key result
+    normalizedData.key_results.forEach((kr: any) => {
+      validateFields(kr, ['id', 'objective_id', 'title', 'forecast', 'moon', 'unit'], 'key result')
+    })
+
+    // Valida ogni risk
+    normalizedData.risks.forEach((risk: any) => {
+      validateFields(risk, ['id', 'key_result_id', 'title', 'description', 'probability', 'impact'], 'risk')
+    })
+
+    // Valida ogni initiative
+    normalizedData.initiatives.forEach((init: any) => {
+      validateFields(init, ['id', 'risk_id', 'title', 'description', 'priority', 'status'], 'initiative')
+    })
+
+    // Verifica le relazioni tra gli elementi
+    const objectiveIds = new Set(normalizedData.objectives.map((obj: any) => obj.id))
+    const keyResultIds = new Set(normalizedData.key_results.map((kr: any) => kr.id))
+    const riskIds = new Set(normalizedData.risks.map((risk: any) => risk.id))
+
+    // Verifica relazioni key results -> objectives
+    normalizedData.key_results.forEach((kr: any) => {
+      if (!objectiveIds.has(kr.objective_id)) {
+        throw new Error(`Key Result ${kr.id} fa riferimento a un Objective inesistente: ${kr.objective_id}`)
+      }
+    })
+
+    // Verifica relazioni risks -> key results
+    normalizedData.risks.forEach((risk: any) => {
+      if (!keyResultIds.has(risk.key_result_id)) {
+        throw new Error(`Risk ${risk.id} fa riferimento a un Key Result inesistente: ${risk.key_result_id}`)
+      }
+    })
+
+    // Verifica relazioni initiatives -> risks
+    normalizedData.initiatives.forEach((init: any) => {
+      if (!riskIds.has(init.risk_id)) {
+        throw new Error(`Initiative ${init.id} fa riferimento a un Risk inesistente: ${init.risk_id}`)
+      }
+    })
+
+    // Verifica che ogni Key Result abbia almeno un rischio
+    normalizedData.key_results.forEach((kr: any) => {
+      const risksForKR = normalizedData.risks.filter((r: any) => r.key_result_id === kr.id)
+      if (risksForKR.length === 0) {
+        throw new Error(`Key Result ${kr.id} non ha rischi associati`)
+      }
+    })
+
+    // Verifica che ogni Rischio abbia almeno un'iniziativa
+    normalizedData.risks.forEach((risk: any) => {
+      const initiativesForRisk = normalizedData.initiatives.filter((i: any) => i.risk_id === risk.id)
+      if (initiativesForRisk.length === 0) {
+        throw new Error(`Risk ${risk.id} non ha iniziative associate`)
+      }
+    })
+    
     return {
       id: `okr_${Date.now()}`,
       team: context.team,
       period: context.period,
-      objectives: (data.objectives || []).map((obj: any, index: number) => ({
-        id: obj.id || `obj_${index + 1}`,
+      objectives: normalizedData.objectives.map((obj: any) => ({
+        id: obj.id,
         title: obj.title,
         description: obj.description || '',
         isQualitative: true,
         isTimeBound: true,
         isInspirational: true
       })),
-      keyResults: (data.key_results || []).map((kr: any, index: number) => ({
-        id: kr.id || `kr_${index + 1}`,
+      keyResults: normalizedData.key_results.map((kr: any) => ({
+        id: kr.id,
         objectiveId: kr.objective_id,
         title: kr.title,
-        forecast: kr.forecast || '',
-        moon: kr.moon || '',
-        unit: kr.unit || '',
+        forecast: kr.forecast,
+        moon: kr.moon,
+        unit: kr.unit,
         isQuantitative: true,
         isMeasurable: true,
         isSpecific: true,
         isAmbitious: true
       })),
-      risks: (data.risks || []).map((risk: any, index: number) => ({
-        id: risk.id || `risk_${index + 1}`,
+      risks: normalizedData.risks.map((risk: any) => ({
+        id: risk.id,
+        keyResultId: risk.key_result_id,
         title: risk.title,
         description: risk.description,
         probability: risk.probability || 'medium',
@@ -152,11 +239,11 @@ export class OKRGenerator {
         isExternal: risk.is_external || false,
         isInternal: !risk.is_external
       })),
-      initiatives: (data.initiatives || []).map((init: any, index: number) => ({
-        id: init.id || `init_${index + 1}`,
+      initiatives: normalizedData.initiatives.map((init: any) => ({
+        id: init.id,
         riskId: init.risk_id,
         title: init.title,
-        description: init.description || '',
+        description: init.description,
         status: init.status || 'not_started',
         priority: init.priority || 'medium',
         isMitigative: true
@@ -167,38 +254,49 @@ export class OKRGenerator {
   }
 
   private convertOKRSetToYAML(okrSet: OKRSet): string {
+    // Prepara i dati nel formato corretto
     const data = {
       objectives: okrSet.objectives.map(obj => ({
         id: obj.id,
         title: obj.title,
-        description: obj.description
+        description: obj.description || ''
       })),
       key_results: okrSet.keyResults.map(kr => ({
         id: kr.id,
         objective_id: kr.objectiveId,
         title: kr.title,
-        forecast: kr.forecast,
-        moon: kr.moon,
-        unit: kr.unit
+        forecast: kr.forecast || '',
+        moon: kr.moon || '',
+        unit: kr.unit || ''
       })),
       risks: okrSet.risks.map(risk => ({
         id: risk.id,
+        key_result_id: risk.keyResultId,
         title: risk.title,
-        description: risk.description,
-        probability: risk.probability,
-        impact: risk.impact,
-        is_external: risk.isExternal
+        description: risk.description || '',
+        probability: risk.probability || 'medium',
+        impact: risk.impact || 'medium',
+        is_external: risk.isExternal || false
       })),
       initiatives: okrSet.initiatives.map(init => ({
         id: init.id,
         risk_id: init.riskId,
         title: init.title,
-        description: init.description,
-        priority: init.priority,
-        status: init.status
+        description: init.description || '',
+        priority: init.priority || 'medium',
+        status: init.status || 'not_started'
       }))
     }
 
-    return yaml.dump(data)
+    // Configura yaml.dump per mantenere il formato desiderato
+    const yamlOptions = {
+      lineWidth: -1, // Disabilita il line wrapping
+      quotingType: '"' as const, // Usa le virgolette doppie
+      forceQuotes: true, // Forza le virgolette per le stringhe
+      indent: 2 // Indentazione di 2 spazi
+    }
+
+    // Genera il YAML con le opzioni specificate
+    return yaml.dump(data, yamlOptions)
   }
 } 

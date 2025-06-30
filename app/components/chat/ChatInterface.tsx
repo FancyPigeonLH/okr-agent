@@ -9,7 +9,7 @@ import { OkrDisplay } from '@/app/components/okr/OkrDisplay'
 export function ChatInterface() {
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
-  const { messages, currentOKR, isLoading, context, setContext } = useOKRStore()
+  const { messages, currentOKR, isLoading, context, setContext, error, setError } = useOKRStore()
   const { generateOKR, iterateOKR } = useOKRActions()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,10 +19,14 @@ export function ChatInterface() {
     const userInput = input.trim()
     setInput('')
 
-    if (currentOKR) {
-      await iterateOKR(userInput)
-    } else {
-      await generateOKR(userInput)
+    try {
+      if (currentOKR) {
+        await iterateOKR(userInput)
+      } else {
+        await generateOKR(userInput)
+      }
+    } catch (error) {
+      console.error('Errore durante l\'operazione:', error)
     }
   }
 

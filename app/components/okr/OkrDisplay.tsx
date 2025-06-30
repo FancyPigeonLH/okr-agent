@@ -98,59 +98,54 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
       </div>
 
       {/* Risks */}
-      {okrSet.risks.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-red-600">Rischi</h3>
-          {okrSet.risks.map((risk) => (
-            <div key={risk.id} className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-medium text-red-900">{risk.title}</h4>
-                  <p className="text-sm text-red-700 mt-1">{risk.description}</p>
-                  <div className="flex gap-4 mt-2 text-sm text-red-600">
-                    <span>Probabilità: {risk.probability}</span>
-                    <span>Impatto: {risk.impact}</span>
-                  </div>
+      <div className="space-y-4">
+        <h3 className="text-xl font-semibold text-red-600">Rischi</h3>
+        {okrSet.risks.map((risk) => (
+          <div key={risk.id} className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="font-medium text-red-900">{risk.title}</h4>
+                <p className="text-sm text-red-700 mt-1">{risk.description}</p>
+                <div className="flex gap-4 mt-2 text-sm text-red-600">
+                  <span>Probabilità: {risk.probability}</span>
+                  <span>Impatto: {risk.impact}</span>
                 </div>
-                <CopyButton text={risk.title} itemId={risk.id} />
               </div>
+              <CopyButton text={risk.title} itemId={risk.id} />
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       {/* Initiatives */}
-      {okrSet.initiatives.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-purple-600">Iniziative</h3>
-          {okrSet.risks.map((risk) => {
-            const initiatives = okrSet.initiatives.filter(init => init.riskId === risk.id)
-            if (initiatives.length === 0) return null
-            return (
-              <div key={risk.id} className="space-y-3">
-                <h4 className="font-medium text-gray-700">{risk.title}</h4>
-                {initiatives.map((initiative) => (
-                  <div key={initiative.id} className="bg-purple-50 border border-purple-200 rounded-lg p-4 ml-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h5 className="font-medium text-purple-900">{initiative.title}</h5>
-                        {initiative.description && (
-                          <p className="text-sm text-purple-700 mt-1">{initiative.description}</p>
-                        )}
-                        <div className="flex gap-4 mt-2 text-sm text-purple-600">
-                          <span>Priorità: {initiative.priority}</span>
-                          <span>Stato: {initiative.status}</span>
-                        </div>
+      <div className="space-y-4">
+        <h3 className="text-xl font-semibold text-purple-600">Iniziative</h3>
+        {okrSet.risks.map((risk) => {
+          const initiatives = okrSet.initiatives.filter(init => init.riskId === risk.id)
+          return (
+            <div key={risk.id} className="space-y-3">
+              <h4 className="font-medium text-gray-700">{risk.title}</h4>
+              {initiatives.map((initiative) => (
+                <div key={initiative.id} className="bg-purple-50 border border-purple-200 rounded-lg p-4 ml-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h5 className="font-medium text-purple-900">{initiative.title}</h5>
+                      {initiative.description && (
+                        <p className="text-sm text-purple-700 mt-1">{initiative.description}</p>
+                      )}
+                      <div className="flex gap-4 mt-2 text-sm text-purple-600">
+                        <span>Priorità: {initiative.priority}</span>
+                        <span>Stato: {initiative.status}</span>
                       </div>
-                      <CopyButton text={initiative.title} itemId={initiative.id} />
                     </div>
+                    <CopyButton text={initiative.title} itemId={initiative.id} />
                   </div>
-                ))}
-              </div>
-            )
-          })}
-        </div>
-      )}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
 
       {/* Export YAML */}
       <div className="border-t pt-4">
