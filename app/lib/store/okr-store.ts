@@ -97,7 +97,7 @@ export const useOKRActions = () => {
       // Aggiungi messaggio AI
       store.addMessage({
         role: 'assistant',
-        content: `OKR generati con successo in ${data.data.iterations} iterazioni!`,
+        content: 'OKR generati con successo: cosa ne dici? 😊',
         okrSetId: data.data.okrSet.id
       })
       
@@ -150,7 +150,7 @@ export const useOKRActions = () => {
       // Aggiungi messaggio AI
       store.addMessage({
         role: 'assistant',
-        content: 'OKR aggiornati con successo!',
+        content: 'Ho aggiornato gli OKR: ti piacciono le modifiche? 😊',
         okrSetId: data.data.okrSet.id
       })
       
