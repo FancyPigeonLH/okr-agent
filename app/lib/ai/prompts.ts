@@ -8,7 +8,7 @@ export const LINKHUB_RULES_PROMPT = `
 1. Gli Objectives devono essere qualitativi, ispirazionali e time-bound.
 2. I Key Results devono essere quantitativi, misurabili, specifici e ambiziosi (metodo SMART).
 3. Almeno 3 Key Results per ogni Objective.
-4. I Rischi devono essere esterni o interni, e devono impattare direttamente il raggiungimento degli OKR.
+4. Ogni Key Result deve avere da 1 a 3 Rischi specifici che ne minacciano il raggiungimento.
 5. Le Iniziative sono azioni mitigative concrete per gestire i Rischi identificati.
 6. Il formato dell'output deve essere YAML per facilitare l'importazione.
 7. Ogni elemento deve essere giustificato brevemente.
@@ -18,6 +18,7 @@ export const LINKHUB_RULES_PROMPT = `
 11. I Rischi devono essere formulati come "se...allora..." con strategia di mitigazione.
 12. Le Iniziative devono essere derivate direttamente dai Rischi, descrivendo azioni concrete per mitigarli.
 13. Ogni Iniziativa deve avere una descrizione chiara che spiega come l'azione mitiga il rischio associato.
+14. Il Forecast e la Luna di ogni Key Result devono utilizzare la stessa unità di misura (es: entrambi in minuti o entrambi in ore).
 `
 
 export function generateInitialPrompt(userRequest: string, context: {
@@ -47,24 +48,25 @@ objectives:
 key_results:
   - id: kr_1
     objective_id: obj_1
-    title: "Produzione giornaliera"
-    target: "valore target"
-    current: "valore attuale"
-    unit: "unità di misura"
+    title: "Tempo medio di risoluzione degli incident"
+    forecast: "30 minuti"
+    moon: "15 minuti"
+    unit: "minuti"
 
 risks:
   - id: risk_1
-    title: "Ritardi nell'ottenimento delle autorizzazioni"
-    description: "Se non otteniamo le necessarie autorizzazioni entro il Q1 2024, allora il lancio nel mercato sarà ritardato"
+    key_result_id: kr_1
+    title: "Carenza di personale nel team di supporto"
+    description: "Se non riusciamo a mantenere un team di supporto adeguatamente dimensionato, allora i tempi di risoluzione degli incident potrebbero aumentare"
     probability: "medium"
     impact: "high"
-    is_external: true
+    is_external: false
 
 initiatives:
   - id: init_1
     risk_id: risk_1
-    title: "Piano di gestione autorizzazioni"
-    description: "Implementare un sistema di monitoraggio proattivo delle scadenze e requisiti normativi, con alert anticipati e procedure di escalation"
+    title: "Piano di formazione cross-funzionale"
+    description: "Implementare un programma di formazione che permetta ai membri di altri team di supportare la risoluzione degli incident di base"
     priority: "high"
     status: "not_started"
 

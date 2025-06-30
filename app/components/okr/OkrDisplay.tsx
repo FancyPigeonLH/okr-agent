@@ -83,8 +83,8 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
                     <div className="flex-1">
                       <h5 className="font-medium text-green-900">{keyResult.title}</h5>
                       <div className="flex gap-4 mt-2 text-sm text-green-700">
-                        <span>Target: {keyResult.target}</span>
-                        <span>Attuale: {keyResult.current}</span>
+                        <span>Forecast: {keyResult.forecast}</span>
+                        <span>Luna: {keyResult.moon}</span>
                         <span>Unità: {keyResult.unit}</span>
                       </div>
                     </div>

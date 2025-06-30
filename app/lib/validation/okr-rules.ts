@@ -16,6 +16,7 @@ export const LINKHUB_RULES = {
     mustBeMeasurable: true,
     mustBeSpecific: true,
     mustBeAmbitious: true,
+    mustHaveConsistentUnits: true,
     forbiddenVerbs: ['aumentare', 'migliorare', 'ridurre', 'ottimizzare', 'espandere', 'consolidare', 'innovare'],
     requiredPatterns: [
       /\d+/, // deve contenere numeri
@@ -23,9 +24,9 @@ export const LINKHUB_RULES = {
     ]
   },
   risks: {
-    minPerOKR: 2,
-    maxPerOKR: 5,
-    mustHaveMitigation: false,
+    minPerKeyResult: 1,
+    maxPerKeyResult: 3,
+    mustHaveMitigation: true,
     mustBeRelevant: true,
     format: 'if-then' // formato "se...allora..."
   },
@@ -99,6 +100,19 @@ export function validateKeyResult(keyResult: KeyResult): ValidationResult {
   )
   if (hasInfinitiveVerb) {
     errors.push('Il Key Result deve essere espresso come nome di metrica (es: "Produzione giornaliera" e NON "Aumentare la produzione giornaliera")')
+  }
+
+  // Controllo coerenza unità di misura tra forecast e moon
+  const extractUnit = (value: string): string => {
+    const numericPart = value.match(/\d+/)?.[0] || ''
+    return value.replace(numericPart, '').trim()
+  }
+
+  const forecastUnit = extractUnit(keyResult.forecast)
+  const moonUnit = extractUnit(keyResult.moon)
+
+  if (forecastUnit !== moonUnit) {
+    errors.push('Il Forecast e la Luna devono utilizzare la stessa unità di misura')
   }
 
   // Controllo ambizione (valori realistici ma sfidanti)
@@ -186,10 +200,18 @@ export function validateOKRSet(okrSet: OKRSet): ValidationResult {
     }
   })
 
-  // Controllo numero di Rischi
-  if (okrSet.risks.length < LINKHUB_RULES.risks.minPerOKR) {
-    warnings.push(`Dovrebbero essere identificati almeno ${LINKHUB_RULES.risks.minPerOKR} rischi`)
-  }
+  // Controllo numero di Rischi per Key Result
+  okrSet.keyResults.forEach(keyResult => {
+    const risksForKeyResult = okrSet.risks.filter(risk => risk.keyResultId === keyResult.id)
+    
+    if (risksForKeyResult.length < LINKHUB_RULES.risks.minPerKeyResult) {
+      errors.push(`Il Key Result "${keyResult.title}" deve avere almeno ${LINKHUB_RULES.risks.minPerKeyResult} rischio`)
+    }
+
+    if (risksForKeyResult.length > LINKHUB_RULES.risks.maxPerKeyResult) {
+      warnings.push(`Il Key Result "${keyResult.title}" ha troppi rischi (max ${LINKHUB_RULES.risks.maxPerKeyResult})`)
+    }
+  })
 
   // Controllo numero di Iniziative per Rischio
   okrSet.risks.forEach(risk => {

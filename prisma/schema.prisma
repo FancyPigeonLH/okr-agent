@@ -50,8 +50,8 @@ model Objective {
 model KeyResult {
   id            String @id @default(cuid())
   title         String
-  target        String?
-  current       String?
+  forecast      String?
+  moon          String?
   unit          String?
   isQuantitative Boolean @default(true)
   isMeasurable  Boolean @default(true)
@@ -77,8 +77,9 @@ model Risk {
   isInternal  Boolean @default(true)
   
   // Relazioni
-  okrSetId    String
-  okrSet      OKRSet @relation(fields: [okrSetId], references: [id], onDelete: Cascade)
+  keyResultId String
+  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  initiatives Initiative[]
 
   @@map("risks")
 }
@@ -93,8 +94,8 @@ model Initiative {
   endDate     DateTime?
   
   // Relazioni
-  keyResultId String
-  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  riskId      String
+  risk        Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
 
   @@map("initiatives")
 }

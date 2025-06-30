@@ -11,8 +11,8 @@ export interface KeyResult {
   id: string
   objectiveId: string
   title: string
-  target: string
-  current: string
+  forecast: string
+  moon: string
   unit: string
   isQuantitative: boolean
   isMeasurable: boolean
@@ -22,6 +22,7 @@ export interface KeyResult {
 
 export interface Risk {
   id: string
+  keyResultId: string
   title: string
   description: string
   probability: 'low' | 'medium' | 'high'

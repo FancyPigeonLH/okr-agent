@@ -135,8 +135,8 @@ export class OKRGenerator {
         id: kr.id || `kr_${index + 1}`,
         objectiveId: kr.objective_id,
         title: kr.title,
-        target: kr.target || '',
-        current: kr.current || '',
+        forecast: kr.forecast || '',
+        moon: kr.moon || '',
         unit: kr.unit || '',
         isQuantitative: true,
         isMeasurable: true,
@@ -177,8 +177,8 @@ export class OKRGenerator {
         id: kr.id,
         objective_id: kr.objectiveId,
         title: kr.title,
-        target: kr.target,
-        current: kr.current,
+        forecast: kr.forecast,
+        moon: kr.moon,
         unit: kr.unit
       })),
       risks: okrSet.risks.map(risk => ({
