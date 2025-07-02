@@ -150,17 +150,17 @@ export class OKRGenerator {
 
     // Valida ogni key result
     normalizedData.key_results.forEach((kr: any) => {
-      validateFields(kr, ['id', 'objective_id', 'title', 'forecast', 'moon', 'unit'], 'key result')
+      validateFields(kr, ['id', 'objective_id', 'title', 'unit'], 'key result')
     })
 
     // Valida ogni risk
     normalizedData.risks.forEach((risk: any) => {
-      validateFields(risk, ['id', 'key_result_id', 'title', 'description', 'probability', 'impact'], 'risk')
+      validateFields(risk, ['id', 'key_result_id', 'title', 'description'], 'risk')
     })
 
     // Valida ogni initiative
     normalizedData.initiatives.forEach((init: any) => {
-      validateFields(init, ['id', 'risk_id', 'title', 'description', 'priority', 'status'], 'initiative')
+      validateFields(init, ['id', 'risk_id', 'description'], 'initiative')
     })
 
     // Verifica le relazioni tra gli elementi
@@ -221,8 +221,6 @@ export class OKRGenerator {
         id: kr.id,
         objectiveId: kr.objective_id,
         title: kr.title,
-        forecast: kr.forecast,
-        moon: kr.moon,
         unit: kr.unit,
         isQuantitative: true,
         isMeasurable: true,
@@ -234,18 +232,13 @@ export class OKRGenerator {
         keyResultId: risk.key_result_id,
         title: risk.title,
         description: risk.description,
-        probability: risk.probability || 'medium',
-        impact: risk.impact || 'medium',
         isExternal: risk.is_external || false,
         isInternal: !risk.is_external
       })),
       initiatives: normalizedData.initiatives.map((init: any) => ({
         id: init.id,
         riskId: init.risk_id,
-        title: init.title,
         description: init.description,
-        status: init.status || 'not_started',
-        priority: init.priority || 'medium',
         isMitigative: true
       })),
       createdAt: now,
@@ -254,49 +247,32 @@ export class OKRGenerator {
   }
 
   private convertOKRSetToYAML(okrSet: OKRSet): string {
-    // Prepara i dati nel formato corretto
-    const data = {
+    const yamlData = {
       objectives: okrSet.objectives.map(obj => ({
         id: obj.id,
         title: obj.title,
-        description: obj.description || ''
+        description: obj.description
       })),
       key_results: okrSet.keyResults.map(kr => ({
         id: kr.id,
         objective_id: kr.objectiveId,
         title: kr.title,
-        forecast: kr.forecast || '',
-        moon: kr.moon || '',
-        unit: kr.unit || ''
+        unit: kr.unit
       })),
       risks: okrSet.risks.map(risk => ({
         id: risk.id,
         key_result_id: risk.keyResultId,
         title: risk.title,
-        description: risk.description || '',
-        probability: risk.probability || 'medium',
-        impact: risk.impact || 'medium',
-        is_external: risk.isExternal || false
+        description: risk.description,
+        is_external: risk.isExternal
       })),
       initiatives: okrSet.initiatives.map(init => ({
         id: init.id,
         risk_id: init.riskId,
-        title: init.title,
-        description: init.description || '',
-        priority: init.priority || 'medium',
-        status: init.status || 'not_started'
+        description: init.description
       }))
     }
 
-    // Configura yaml.dump per mantenere il formato desiderato
-    const yamlOptions = {
-      lineWidth: -1, // Disabilita il line wrapping
-      quotingType: '"' as const, // Usa le virgolette doppie
-      forceQuotes: true, // Forza le virgolette per le stringhe
-      indent: 2 // Indentazione di 2 spazi
-    }
-
-    // Genera il YAML con le opzioni specificate
-    return yaml.dump(data, yamlOptions)
+    return yaml.dump(yamlData)
   }
 } 

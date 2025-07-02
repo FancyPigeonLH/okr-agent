@@ -19,6 +19,7 @@ export const LINKHUB_RULES_PROMPT = `
 12. Le Iniziative devono essere derivate direttamente dai Rischi, descrivendo azioni concrete per mitigarli.
 13. Ogni Iniziativa deve avere una descrizione chiara che spiega come l'azione mitiga il rischio associato.
 14. Il Forecast e la Luna di ogni Key Result devono utilizzare la stessa unità di misura (es: entrambi in minuti o entrambi in ore).
+15. La descrizione di ogni Iniziativa DEVE iniziare con un verbo all'infinito (es: "Implementare...", "Chiamare...", "Creare...").
 `
 
 export function generateInitialPrompt(userRequest: string, context: {
@@ -53,27 +54,21 @@ objectives:
 key_results:
   - id: "kr_1"
     objective_id: "obj_1"
-    title: "Tempo medio di risoluzione degli incident"
-    forecast: "30 minuti"
-    moon: "15 minuti"
-    unit: "minuti"
+    title: "Titolo del Key Result"
+    unit: "unità"
 
 risks:
   - id: "risk_1"
     key_result_id: "kr_1"
-    title: "Carenza di personale nel team di supporto"
-    description: "Se non riusciamo a mantenere un team di supporto adeguatamente dimensionato, allora i tempi di risoluzione degli incident potrebbero aumentare"
-    probability: "medium"
-    impact: "high"
+    title: "Titolo del Rischio"
+    description: "Descrizione del rischio"
     is_external: false
 
 initiatives:
   - id: "init_1"
     risk_id: "risk_1"
-    title: "Piano di formazione cross-funzionale"
-    description: "Implementare un programma di formazione che permetta ai membri di altri team di supportare la risoluzione degli incident di base"
-    priority: "high"
-    status: "not_started"
+    title: "Titolo dell'Iniziativa"
+    description: "Descrizione dell'iniziativa"
 \`\`\`
 
 ATTENZIONE:
@@ -148,8 +143,6 @@ key_results:
   - id: "kr_1"
     objective_id: "obj_1"
     title: "Titolo del Key Result"
-    forecast: "valore"
-    moon: "valore"
     unit: "unità"
 
 risks:
@@ -157,8 +150,6 @@ risks:
     key_result_id: "kr_1"
     title: "Titolo del Rischio"
     description: "Descrizione del rischio"
-    probability: "medium"
-    impact: "high"
     is_external: false
 
 initiatives:
@@ -166,8 +157,6 @@ initiatives:
     risk_id: "risk_1"
     title: "Titolo dell'Iniziativa"
     description: "Descrizione dell'iniziativa"
-    priority: "high"
-    status: "not_started"
 \`\`\`
 
 Modifica gli OKR esistenti secondo la richiesta dell'utente, mantenendo il rispetto delle .linkhubrules e la struttura YAML esatta.

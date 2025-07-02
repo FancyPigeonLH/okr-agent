@@ -11,8 +11,6 @@ export interface KeyResult {
   id: string
   objectiveId: string
   title: string
-  forecast: string
-  moon: string
   unit: string
   isQuantitative: boolean
   isMeasurable: boolean
@@ -34,12 +32,7 @@ export interface Risk {
 export interface Initiative {
   id: string
   riskId: string
-  title: string
   description: string
-  status: 'not_started' | 'in_progress' | 'completed'
-  priority: 'low' | 'medium' | 'high'
-  startDate?: Date
-  endDate?: Date
   isMitigative: boolean
 }
 

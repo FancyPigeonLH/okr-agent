@@ -83,8 +83,6 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
                     <div className="flex-1">
                       <h5 className="font-medium text-green-900">{keyResult.title}</h5>
                       <div className="flex gap-4 mt-2 text-sm text-green-700">
-                        <span>Forecast: {keyResult.forecast}</span>
-                        <span>Luna: {keyResult.moon}</span>
                         <span>Unità: {keyResult.unit}</span>
                       </div>
                     </div>
@@ -106,10 +104,6 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
               <div className="flex-1">
                 <h4 className="font-medium text-red-900">{risk.title}</h4>
                 <p className="text-sm text-red-700 mt-1">{risk.description}</p>
-                <div className="flex gap-4 mt-2 text-sm text-red-600">
-                  <span>Probabilità: {risk.probability}</span>
-                  <span>Impatto: {risk.impact}</span>
-                </div>
               </div>
               <CopyButton text={risk.title} itemId={risk.id} />
             </div>
@@ -129,16 +123,9 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
                 <div key={initiative.id} className="bg-purple-50 border border-purple-200 rounded-lg p-4 ml-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h5 className="font-medium text-purple-900">{initiative.title}</h5>
-                      {initiative.description && (
-                        <p className="text-sm text-purple-700 mt-1">{initiative.description}</p>
-                      )}
-                      <div className="flex gap-4 mt-2 text-sm text-purple-600">
-                        <span>Priorità: {initiative.priority}</span>
-                        <span>Stato: {initiative.status}</span>
-                      </div>
+                      <p className="text-sm text-purple-700">{initiative.description}</p>
                     </div>
-                    <CopyButton text={initiative.title} itemId={initiative.id} />
+                    <CopyButton text={initiative.description || ''} itemId={initiative.id} />
                   </div>
                 </div>
               ))}
@@ -157,13 +144,14 @@ objectives:
 ${okrSet.objectives.map(obj => `  - title: "${obj.title}"`).join('\n')}
 
 key_results:
-${okrSet.keyResults.map(kr => `  - title: "${kr.title}"`).join('\n')}
+${okrSet.keyResults.map(kr => `  - title: "${kr.title}"
+    unit: "${kr.unit}"`).join('\n')}
 
 risks:
 ${okrSet.risks.map(risk => `  - title: "${risk.title}"`).join('\n')}
 
 initiatives:
-${okrSet.initiatives.map(init => `  - title: "${init.title}"`).join('\n')}`
+${okrSet.initiatives.map(init => `  - description: "${init.description}"`).join('\n')}`
             copyToClipboard(yamlContent, 'yaml-export')
           }}
           className="w-full"

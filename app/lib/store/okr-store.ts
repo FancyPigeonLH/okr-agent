@@ -149,8 +149,6 @@ export const useOKRActions = () => {
           id: kr.id,
           objectiveId: kr.objectiveId,
           title: kr.title,
-          forecast: kr.forecast || '',
-          moon: kr.moon || '',
           unit: kr.unit || ''
         })),
         risks: store.currentOKR.risks.map(risk => ({
@@ -158,16 +156,12 @@ export const useOKRActions = () => {
           keyResultId: risk.keyResultId,
           title: risk.title,
           description: risk.description || '',
-          probability: risk.probability || 'medium',
-          impact: risk.impact || 'medium'
+          isExternal: risk.isExternal || false
         })),
         initiatives: store.currentOKR.initiatives.map(init => ({
           id: init.id,
           riskId: init.riskId,
-          title: init.title,
-          description: init.description || '',
-          priority: init.priority || 'medium',
-          status: init.status || 'not_started'
+          description: init.description || ''
         }))
       }
       

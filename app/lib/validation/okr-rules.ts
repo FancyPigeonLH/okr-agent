@@ -16,7 +16,6 @@ export const LINKHUB_RULES = {
     mustBeMeasurable: true,
     mustBeSpecific: true,
     mustBeAmbitious: true,
-    mustHaveConsistentUnits: true,
     forbiddenVerbs: ['aumentare', 'migliorare', 'ridurre', 'ottimizzare', 'espandere', 'consolidare', 'innovare'],
     requiredPatterns: [
       /\d+/, // deve contenere numeri
@@ -35,7 +34,11 @@ export const LINKHUB_RULES = {
     maxPerRisk: 3,
     mustBeActionable: true,
     mustBeSpecific: true,
-    mustBeMitigative: true
+    mustBeMitigative: true,
+    infinitiveVerbs: ['implementare', 'creare', 'sviluppare', 'definire', 'stabilire', 'organizzare', 
+      'pianificare', 'avviare', 'introdurre', 'migliorare', 'ottimizzare', 'automatizzare', 'monitorare',
+      'documentare', 'formare', 'addestrare', 'configurare', 'installare', 'aggiornare', 'verificare',
+      'testare', 'validare', 'analizzare', 'chiamare', 'contattare']
   }
 }
 
@@ -102,31 +105,6 @@ export function validateKeyResult(keyResult: KeyResult): ValidationResult {
     errors.push('Il Key Result deve essere espresso come nome di metrica (es: "Produzione giornaliera" e NON "Aumentare la produzione giornaliera")')
   }
 
-  // Controllo coerenza unità di misura tra forecast e moon
-  const extractUnit = (value: string): string => {
-    const numericPart = value.match(/\d+/)?.[0] || ''
-    return value.replace(numericPart, '').trim()
-  }
-
-  const forecastUnit = extractUnit(keyResult.forecast)
-  const moonUnit = extractUnit(keyResult.moon)
-
-  if (forecastUnit !== moonUnit) {
-    errors.push('Il Forecast e la Luna devono utilizzare la stessa unità di misura')
-  }
-
-  // Controllo ambizione (valori realistici ma sfidanti)
-  const numbers = keyResult.title.match(/\d+/g)
-  if (numbers) {
-    const percentage = numbers.find(num => keyResult.title.includes('%'))
-    if (percentage) {
-      const value = parseInt(percentage)
-      if (value < 5 || value > 200) {
-        warnings.push('La percentuale dovrebbe essere realistica ma sfidante (5-200%)')
-      }
-    }
-  }
-
   return {
     isValid: errors.length === 0,
     errors,
@@ -162,17 +140,16 @@ export function validateInitiative(initiative: Initiative): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
 
-  // Controllo azionabilità
-  const actionVerbs = ['implementare', 'lanciare', 'sviluppare', 'creare', 'ottimizzare', 'migliorare']
-  const hasActionVerb = actionVerbs.some(verb => 
-    initiative.title.toLowerCase().includes(verb)
+  // Controllo che la descrizione inizi con un verbo all'infinito
+  const startsWithInfinitiveVerb = LINKHUB_RULES.initiatives.infinitiveVerbs.some(verb => 
+    initiative.description.toLowerCase().startsWith(verb.toLowerCase())
   )
-  if (!hasActionVerb) {
-    warnings.push('L\'iniziativa dovrebbe contenere un verbo d\'azione')
+  if (!startsWithInfinitiveVerb) {
+    errors.push('La descrizione dell\'iniziativa deve iniziare con un verbo all\'infinito (es: "Implementare...", "Creare...", "Sviluppare...")')
   }
 
   // Controllo specificità
-  if (initiative.title.length < 15) {
+  if (initiative.description.length < 15) {
     warnings.push('L\'iniziativa dovrebbe essere più specifica')
   }
 
