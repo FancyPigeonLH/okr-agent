@@ -1,128 +1,475 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../app/generated/prisma"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-model OKRSet {
-  id          String   @id @default(cuid())
-  team        String
-  period      String
+model Post {
+  id          Int      @id @default(autoincrement())
+  name        String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
 
-  // Relazioni
-  objectives  Objective[]
-  keyResults  KeyResult[]
-  risks       Risk[]
-  initiatives Initiative[]
-  messages    ChatMessage[]
+  @@index([name])
+}
 
-  @@map("okr_sets")
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  refresh_token_expires_in Int?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id                  String       @id @default(cuid())
+  name                String?
+  email               String?      @unique
+  emailVerified       DateTime?
+  createdAt           DateTime     @default(now()) @map("created_at")
+  surname             String?
+  authId              String?      @unique @map("auth_id")
+  avatar              String?
+  deletedAt           DateTime?    @map("deleted_at")
+  image               String?
+  accounts            Account[]
+  posts               Post[]
+  sessions            Session[]
+  adminRole           Admin?
+  receivedComments    Comment[]    @relation("CommentReceiver")
+  sentComments        Comment[]    @relation("CommentSender")
+  departmentsLeading  Department[] @relation("DepartmentLeader")
+  updatedForecasts    Forecast[]   @relation("ForecastUpdater")
+  assignedIndicators  Indicator[]  @relation("AssigneeIndicators")
+  assignedInitiatives Initiative[] @relation("InitiativeAssignee")
+  createdInitiatives  Initiative[] @relation("InitiativeCreator")
+  memberships         Membership[]
+  reportsAsReporter   Report[]     @relation("ReporterReports")
+  reportsAsReviewer   Report[]     @relation("ReviewerReports")
+  teamsLeading        Team[]       @relation("TeamLeader")
+  updatedValues       Value[]      @relation("ValueUpdater")
+  chatConversations   ChatConversation[]
+
+  @@index([authId], map: "users_auth_id_index")
+  @@index([email], map: "users_email_index")
+  @@map("users")
+}
+
+model Admin {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("admins")
+}
+
+model Company {
+  id                   String       @id @default(cuid())
+  createdAt            DateTime     @default(now()) @map("created_at")
+  name                 String
+  northStarKeyResultId String?      @map("north_star_key_result_id")
+  mission              String
+  vision               String
+  minReportRateOk      Float?       @map("min_report_rate_ok")
+  minReviewRateOk      Float?       @map("min_review_rate_ok")
+  slug                 String       @unique @map("slug")
+  northStarKeyResult   KeyResult?   @relation("CompanyNorthStar", fields: [northStarKeyResultId], references: [id])
+  departments          Department[]
+  indicators           Indicator[]
+  levels               Level[]
+  teams                Team[]
+
+  @@map("companies")
+}
+
+model Department {
+  id                 String    @id @default(cuid())
+  createdAt          DateTime  @default(now()) @map("created_at")
+  departmentLeaderId String    @map("department_leader_id")
+  companyId          String    @map("company_id")
+  name               String
+  slug               String    @unique @map("slug")
+  clusters           Cluster[]
+  company            Company   @relation(fields: [companyId], references: [id])
+  departmentLeader   User      @relation("DepartmentLeader", fields: [departmentLeaderId], references: [id])
+
+  @@map("departments")
+}
+
+model Level {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now()) @map("created_at")
+  description String
+  number      Int
+  companyId   String?   @map("company_id")
+  clusters    Cluster[]
+  company     Company?  @relation(fields: [companyId], references: [id])
+
+  @@map("levels")
+}
+
+model Cluster {
+  id                  String     @id @default(cuid())
+  createdAt           DateTime   @default(now()) @map("created_at")
+  name                String
+  teamClusterLeaderId String     @map("team_cluster_leader_id")
+  departmentId        String     @map("department_id")
+  reportingDays       Int        @map("reporting_days")
+  logoUrl             String?    @map("logo_url")
+  levelId             String     @map("level_id")
+  slug                String     @unique @map("slug")
+  department          Department @relation(fields: [departmentId], references: [id])
+  level               Level      @relation(fields: [levelId], references: [id])
+  teamClusterLeader   Team       @relation("ClusterLeader", fields: [teamClusterLeaderId], references: [id])
+  teams               Team[]     @relation("TeamCluster")
+
+  @@map("clusters")
+}
+
+model Team {
+  id               String       @id @default(cuid())
+  createdAt        DateTime     @default(now()) @map("created_at")
+  name             String
+  teamLeaderId     String       @map("team_leader_id")
+  reportingMonths  Int          @map("reporting_months")
+  impact           Int
+  clusterId        String?      @map("cluster_id")
+  type             String
+  companyId        String       @map("company_id")
+  lastTrackingDate DateTime?    @map("last_tracking_date")
+  deletedAt        DateTime?    @map("deleted_at")
+  notes            String?
+  slug             String       @unique @map("slug")
+  leadingClusters  Cluster[]    @relation("ClusterLeader")
+  comments         Comment[]
+  initiatives      Initiative[]
+  memberships      Membership[]
+  objectives       Objective[]
+  reports          Report[]
+  cluster          Cluster?     @relation("TeamCluster", fields: [clusterId], references: [id])
+  company          Company      @relation(fields: [companyId], references: [id])
+  teamLeader       User         @relation("TeamLeader", fields: [teamLeaderId], references: [id])
+
+  @@index([clusterId], map: "teams_cluster_id_index")
+  @@index([teamLeaderId], map: "teams_team_leader_id_index")
+  @@index([companyId], map: "teams_company_id_index")
+  @@map("teams")
+}
+
+model Membership {
+  userId    String   @map("user_id")
+  teamId    String   @map("team_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  team      Team     @relation(fields: [teamId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@id([userId, teamId])
+  @@index([teamId], map: "memberships_team_id_index")
+  @@map("memberships")
+}
+
+model Indicator {
+  id                    String      @id @default(cuid())
+  companyId             String      @map("company_id")
+  description           String
+  symbol                String
+  periodicity           Int
+  assigneeId            String      @map("assignee_id")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  automationUrl         String?     @map("automation_url")
+  automationDescription String?     @map("automation_description")
+  deletedAt             DateTime?   @map("deleted_at")
+  notes                 String?
+  isReverse             Boolean?    @map("is_reverse")
+  slug                  String      @unique @map("slug")
+  comments              Comment[]
+  forecasts             Forecast[]
+  assignee              User        @relation("AssigneeIndicators", fields: [assigneeId], references: [id])
+  company               Company     @relation(fields: [companyId], references: [id])
+  keyResults            KeyResult[]
+  risks                 Risk[]
+  values                Value[]
+
+  @@index([companyId], map: "indicators_company_id_index")
+  @@map("indicators")
 }
 
 model Objective {
-  id              String @id @default(cuid())
-  title           String
-  description     String?
-  isQualitative   Boolean @default(true)
-  isTimeBound     Boolean @default(true)
-  isInspirational Boolean @default(true)
-  
-  // Relazioni
-  okrSetId        String
-  okrSet          OKRSet @relation(fields: [okrSetId], references: [id], onDelete: Cascade)
-  keyResults      KeyResult[]
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now()) @map("created_at")
+  title       String
+  description String
+  updatedAt   DateTime?   @map("updated_at")
+  teamId      String      @map("team_id")
+  deletedAt   DateTime?   @map("deleted_at")
+  slug        String      @unique @map("slug")
+  keyResults  KeyResult[]
+  team        Team        @relation(fields: [teamId], references: [id])
 
+  @@index([teamId], map: "objectives_team_id_index")
   @@map("objectives")
 }
 
 model KeyResult {
-  id            String @id @default(cuid())
-  title         String
-  forecast      String?
-  moon          String?
-  unit          String?
-  isQuantitative Boolean @default(true)
-  isMeasurable  Boolean @default(true)
-  isSpecific    Boolean @default(true)
-  isAmbitious   Boolean @default(true)
-  
-  // Relazioni
-  objectiveId   String
-  objective     Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
-  initiatives   Initiative[]
+  id                      String          @id @default(cuid())
+  createdAt               DateTime        @default(now()) @map("created_at")
+  objectiveId             String          @map("objective_id")
+  indicatorId             String          @map("indicator_id")
+  updatedAt               DateTime?       @map("updated_at")
+  weight                  Float
+  impact                  Float           @default(0)
+  nextKeyResult           String?         @map("next_key_result")
+  finalForecastValue      Float           @map("final_forecast_value")
+  finalTargetValue        Float           @map("final_target_value")
+  finalForecastTargetDate DateTime        @map("final_forecast_target_date")
+  deletedAt               DateTime?       @map("deleted_at")
+  slug                    String          @unique @map("slug")
+  northStarCompanies      Company[]       @relation("CompanyNorthStar")
+  indicator               Indicator       @relation(fields: [indicatorId], references: [id])
+  objective               Objective       @relation(fields: [objectiveId], references: [id])
+  resultNext              ResultNext[]
+  resultTracked           ResultTracked[]
+  risks                   Risk[]
 
+  @@index([objectiveId], map: "key_results_objective_id_index")
+  @@index([indicatorId], map: "key_results_indicator_id_index")
   @@map("key_results")
 }
 
 model Risk {
-  id          String @id @default(cuid())
-  title       String
-  description String
-  probability String @default("medium") // low, medium, high
-  impact      String @default("medium") // low, medium, high
-  mitigation  String?
-  isExternal  Boolean @default(false)
-  isInternal  Boolean @default(true)
-  
-  // Relazioni
-  keyResultId String
-  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
-  initiatives Initiative[]
+  id               String       @id @default(cuid())
+  createdAt        DateTime     @default(now()) @map("created_at")
+  description      String
+  keyResultId      String       @map("key_result_id")
+  isRed            Boolean?     @map("is_red")
+  relativeImpact   Float        @default(0) @map("relative_impact")
+  overallImpact    Float        @default(0) @map("overall_impact")
+  deletedAt        DateTime?    @map("deleted_at")
+  slug             String       @unique @map("slug")
+  indicatorId      String?      @map("indicator_id")
+  triggerValue     Float?       @map("trigger_value")
+  triggeredIfLower Boolean?     @default(false) @map("triggered_if_lower")
+  initiatives      Initiative[]
+  indicator        Indicator?   @relation(fields: [indicatorId], references: [id])
+  keyResult        KeyResult    @relation(fields: [keyResultId], references: [id])
 
+  @@index([keyResultId], map: "risks_key_result_id_index")
+  @@index([indicatorId])
   @@map("risks")
 }
 
 model Initiative {
-  id          String @id @default(cuid())
-  title       String
-  description String?
-  status      String @default("not_started") // not_started, in_progress, completed
-  priority    String @default("medium") // low, medium, high
-  startDate   DateTime?
-  endDate     DateTime?
-  
-  // Relazioni
-  riskId      String
-  risk        Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now()) @map("created_at")
+  description     String
+  riskId          String    @map("risk_id")
+  assigneeId      String    @map("assignee_id")
+  updatedAt       DateTime? @map("updated_at")
+  createdBy       String    @map("created_by")
+  checkInDays     Int       @map("check_in_days")
+  status          Int
+  isNew           Boolean   @map("is_new")
+  lastCheckInDate DateTime? @map("last_check_in_date")
+  relativeImpact  Float     @map("relative_impact")
+  overallImpact   Float     @map("overall_impact")
+  finishedAt      DateTime? @map("finished_at")
+  externalUrl     String?   @map("external_url")
+  teamId          String    @map("team_id")
+  deletedAt       DateTime? @map("deleted_at")
+  notes           String?
+  slug            String    @unique @map("slug")
+  comments        Comment[]
+  assignee        User      @relation("InitiativeAssignee", fields: [assigneeId], references: [id])
+  creator         User      @relation("InitiativeCreator", fields: [createdBy], references: [id])
+  risk            Risk      @relation(fields: [riskId], references: [id])
+  team            Team      @relation(fields: [teamId], references: [id])
 
+  @@index([riskId], map: "initiatives_risk_id_index")
   @@map("initiatives")
 }
 
-model Conversation {
-  id          String   @id @default(cuid())
-  title       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relazioni
-  messages    ChatMessage[]
-  okrSetId    String?
-  okrSet      OKRSet? @relation(fields: [okrSetId], references: [id], onDelete: Cascade)
+model Forecast {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now()) @map("created_at")
+  value       Float
+  date        DateTime
+  indicatorId String    @map("indicator_id")
+  updatedAt   DateTime? @map("updated_at")
+  updatedBy   String?   @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  indicator   Indicator @relation(fields: [indicatorId], references: [id])
+  updater     User?     @relation("ForecastUpdater", fields: [updatedBy], references: [id])
 
-  @@map("conversations")
+  @@index([indicatorId], map: "forecasts_indicator_id_index")
+  @@map("forecasts")
+}
+
+model Value {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now()) @map("created_at")
+  value       Float
+  date        DateTime
+  indicatorId String    @map("indicator_id")
+  updatedAt   DateTime? @map("updated_at")
+  updatedBy   String?   @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  indicator   Indicator @relation(fields: [indicatorId], references: [id])
+  updater     User?     @relation("ValueUpdater", fields: [updatedBy], references: [id])
+
+  @@index([indicatorId], map: "values_indicator_id_index")
+  @@map("values")
+}
+
+model Comment {
+  id           String      @id @default(cuid())
+  createdAt    DateTime    @default(now()) @map("created_at")
+  text         String
+  updatedAt    DateTime?   @map("updated_at")
+  senderId     String      @map("sender_id")
+  receiverId   String      @map("receiver_id")
+  indicatorId  String?     @map("indicator_id")
+  initiativeId String?     @map("initiative_id")
+  teamId       String?     @map("team_id")
+  readAt       DateTime?   @map("read_at")
+  deletedAt    DateTime?   @map("deleted_at")
+  indicator    Indicator?  @relation(fields: [indicatorId], references: [id])
+  initiative   Initiative? @relation(fields: [initiativeId], references: [id])
+  receiver     User        @relation("CommentReceiver", fields: [receiverId], references: [id])
+  sender       User        @relation("CommentSender", fields: [senderId], references: [id])
+  team         Team?       @relation(fields: [teamId], references: [id])
+
+  @@map("comments")
+}
+
+model Report {
+  id                       String          @id @default(cuid())
+  createdAt                DateTime        @default(now()) @map("created_at")
+  updatedAt                DateTime?       @updatedAt @map("updated_at")
+  teamId                   String          @map("team_id")
+  reporterId               String          @map("reporter_id")
+  startDate                DateTime        @map("start_date")
+  trackingDate             DateTime        @map("tracking_date")
+  nextTargetDate           DateTime        @map("next_target_date")
+  reviewerId               String          @map("reviewer_id")
+  reviewedAt               DateTime?       @map("reviewed_at")
+  impactPoints             Float?          @map("impact_points")
+  reportRate               Float?          @map("report_rate")
+  reviewRate               Float?          @map("review_rate")
+  performanceScoreReported Float?          @map("performance_score_reported")
+  resultType               Int?
+  reporterNotes            String?         @map("reporter_notes")
+  closedAt                 DateTime?       @map("closed_at")
+  reviewerNotes            String?         @map("reviewer_notes")
+  deletedAt                DateTime?       @map("deleted_at")
+  slug                     String          @unique @map("slug")
+  reporter                 User            @relation("ReporterReports", fields: [reporterId], references: [id])
+  reviewer                 User            @relation("ReviewerReports", fields: [reviewerId], references: [id])
+  team                     Team            @relation(fields: [teamId], references: [id])
+  resultNext               ResultNext[]
+  resultTracked            ResultTracked[]
+
+  @@index([teamId], map: "reports_team_id_index")
+  @@map("reports")
+}
+
+model ResultTracked {
+  id                String    @id @default(cuid())
+  reportId          String    @map("report_id")
+  keyResultId       String    @map("key_result_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime? @map("updated_at")
+  forecastValue     Float     @map("forecast_value")
+  targetValue       Float     @map("target_value")
+  intervallSource   Int       @map("intervall_source")
+  actualResultValue Float     @map("actual_result_value")
+  performanceScore  Float     @map("performance_score")
+  resultType        Int       @map("result_type")
+  weightReported    Int       @map("weight_reported")
+  weightReviewed    Int?      @map("weight_reviewed")
+  impactPoints      Float     @map("impact_points")
+  notes             String?
+  keyResult         KeyResult @relation(fields: [keyResultId], references: [id])
+  report            Report    @relation(fields: [reportId], references: [id])
+
+  @@index([keyResultId], map: "result_tracked_key_result_id_index")
+  @@index([reportId], map: "result_tracked_report_id_index")
+  @@map("result_tracked")
+}
+
+model ResultNext {
+  id                    String    @id @default(cuid())
+  reportId              String    @map("report_id")
+  keyResultId           String    @map("key_result_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime? @map("updated_at")
+  forecastValueReported Float     @map("forecast_value_reported")
+  targetValueReported   Float     @map("target_value_reported")
+  forecastValueReviewed Float?    @map("forecast_value_reviewed")
+  targetValueReviewed   Float?    @map("target_value_reviewed")
+  notes                 String?
+  keyResult             KeyResult @relation(fields: [keyResultId], references: [id])
+  report                Report    @relation(fields: [reportId], references: [id])
+
+  @@index([keyResultId], map: "result_next_key_result_id_index")
+  @@index([reportId], map: "result_next_report_id_index")
+  @@map("result_next")
+}
+
+model ChatConversation {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime?     @updatedAt @map("updated_at")
+  userId      String        @map("user_id")
+  title       String?
+  deletedAt   DateTime?     @map("deleted_at")
+  messages    ChatMessage[]
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "chat_conversations_user_id_index")
+  @@map("chat_conversations")
 }
 
 model ChatMessage {
-  id              String   @id @default(cuid())
-  role            String   // user, assistant
+  id              String           @id @default(cuid())
+  createdAt       DateTime         @default(now()) @map("created_at")
+  conversationId  String           @map("conversation_id")
   content         String
-  timestamp       DateTime @default(now())
-  
-  // Relazioni
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  isUserMessage   Boolean          @default(true) @map("is_user_message")
+  conversation    ChatConversation @relation(fields: [conversationId], references: [id])
 
+  @@index([conversationId], map: "chat_messages_conversation_id_index")
   @@map("chat_messages")
 }

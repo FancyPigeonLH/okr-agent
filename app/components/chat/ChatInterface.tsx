@@ -1,15 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/app/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Send, Loader2, Settings2, MessageSquare } from 'lucide-react'
 import { useOKRStore, useOKRActions } from '@/app/lib/store/okr-store'
 import { OkrMessage } from './OkrMessage'
+import { CompanyContext } from './CompanyContext'
 
 export function ChatInterface() {
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
-  const { messages, currentOKR, isLoading, context, setContext, error, setError } = useOKRStore()
+  const { messages, currentOKR, isLoading, context, setContext, error } = useOKRStore()
   const { generateOKR, iterateOKR } = useOKRActions()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,13 +34,12 @@ export function ChatInterface() {
   const handleContextSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Genera la richiesta automatica basata sul contesto
-    let autoRequest = `Definisci OKR per il team ${context.team} nel periodo ${context.period}`
-    if (context.objective) {
-      autoRequest = `Definisci OKR per ${context.objective} per il team ${context.team} nel periodo ${context.period}`
+    // Genera la richiesta automatica basata sul contesto della company
+    if (context.selectedCompany) {
+      const autoRequest = `Genera degli OKR per un membro di ${context.selectedCompany.name}`
+      setInput(autoRequest)
     }
     
-    setInput(autoRequest)
     setShowSettings(false)
   }
 
@@ -62,58 +62,36 @@ export function ChatInterface() {
 
           {showSettings ? (
             <form onSubmit={handleContextSubmit} className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Team
-                </label>
-                <input
-                  type="text"
-                  value={context.team}
-                  onChange={(e) => setContext({ ...context, team: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="es. Marketing, Sales, Engineering"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Periodo
-                </label>
-                <input
-                  type="text"
-                  value={context.period}
-                  onChange={(e) => setContext({ ...context, period: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="es. Q1 2024, H1 2024"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Obiettivo (opzionale)
-                </label>
-                <input
-                  type="text"
-                  value={context.objective || ''}
-                  onChange={(e) => setContext({ ...context, objective: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="es. Aumentare l'engagement degli utenti"
-                />
-              </div>
-              <Button type="submit" className="w-full bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md">
-                Salva Contesto
+              <CompanyContext
+                selectedCompany={context.selectedCompany}
+                onCompanySelect={(company) => setContext({ selectedCompany: company })}
+              />
+              <Button 
+                type="submit" 
+                className="w-full bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md"
+                disabled={!context.selectedCompany}
+              >
+                Genera Prompt
               </Button>
             </form>
           ) : (
             <div className="space-y-2 text-sm rounded-lg bg-[#3a88ff]/5 p-3 border border-[#3a88ff]/10 mt-4">
-              <div>
-                <span className="font-medium text-[#3a88ff]">Team:</span> {context.team || 'Non impostato'}
-              </div>
-              <div>
-                <span className="font-medium text-[#3a88ff]">Periodo:</span> {context.period || 'Non impostato'}
-              </div>
-              {context.objective && (
-                <div>
-                  <span className="font-medium text-[#3a88ff]">Obiettivo:</span> {context.objective}
-                </div>
+              {context.selectedCompany ? (
+                <>
+                  <div>
+                    <span className="font-medium text-[#3a88ff]">Company:</span> {context.selectedCompany.name}
+                  </div>
+                  <div>
+                    <span className="font-medium text-[#3a88ff]">Mission:</span>
+                    <p className="mt-1 text-slate-600">{context.selectedCompany.mission}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-[#3a88ff]">Vision:</span>
+                    <p className="mt-1 text-slate-600">{context.selectedCompany.vision}</p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-slate-500">Seleziona una company per iniziare</p>
               )}
             </div>
           )}
@@ -145,7 +123,7 @@ export function ChatInterface() {
                   Inizia a chattare con il tuo coach OKR!
                 </p>
                 <p className="text-slate-500">
-                  Assicurati di aver impostato il team e il periodo nel contesto.
+                  Seleziona una company dal menu di contesto per iniziare.
                 </p>
               </div>
             </div>
@@ -198,11 +176,11 @@ export function ChatInterface() {
                   : "Chiedi di generare nuovi OKR..."
               }
               className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isLoading}
+              disabled={isLoading || !context.selectedCompany}
             />
             <Button 
               type="submit" 
-              disabled={isLoading || !input.trim()} 
+              disabled={isLoading || !input.trim() || !context.selectedCompany} 
               size="sm" 
               className="bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >

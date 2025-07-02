@@ -4,11 +4,11 @@ import { OKRGenerator } from '@/app/lib/ai/gemini'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userRequest, context } = body
+    const { input, context } = body
 
-    if (!userRequest || !context) {
+    if (!input || !context) {
       return NextResponse.json(
-        { error: 'Richiesta e contesto sono obbligatori' },
+        { error: 'Input e contesto sono obbligatori' },
         { status: 400 }
       )
     }
@@ -21,11 +21,11 @@ export async function POST(request: NextRequest) {
     }
 
     const generator = new OKRGenerator()
-    const result = await generator.generateOKR(userRequest, context)
+    const result = await generator.generateOKR(input, context)
 
     return NextResponse.json({
-      success: true,
-      data: result
+      message: 'OKR generati con successo! Cosa ne pensi? 😊',
+      okr: result.okrSet
     })
 
   } catch (error) {
