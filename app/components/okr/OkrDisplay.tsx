@@ -133,42 +133,6 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
           )
         })}
       </div>
-
-      {/* Export YAML */}
-      <div className="border-t pt-4">
-        <Button
-          onClick={() => {
-            const yamlContent = `# OKR - ${okrSet.team} (${okrSet.period})
-
-objectives:
-${okrSet.objectives.map(obj => `  - title: "${obj.title}"`).join('\n')}
-
-key_results:
-${okrSet.keyResults.map(kr => `  - title: "${kr.title}"
-    unit: "${kr.unit}"`).join('\n')}
-
-risks:
-${okrSet.risks.map(risk => `  - title: "${risk.title}"`).join('\n')}
-
-initiatives:
-${okrSet.initiatives.map(init => `  - description: "${init.description}"`).join('\n')}`
-            copyToClipboard(yamlContent, 'yaml-export')
-          }}
-          className="w-full"
-        >
-          {copiedItems.has('yaml-export') ? (
-            <>
-              <Check className="h-4 w-4 mr-2" />
-              YAML Copiato!
-            </>
-          ) : (
-            <>
-              <Copy className="h-4 w-4 mr-2" />
-              Esporta YAML
-            </>
-          )}
-        </Button>
-      </div>
     </div>
   )
 } 

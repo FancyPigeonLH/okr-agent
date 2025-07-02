@@ -47,7 +47,7 @@ export function ChatInterface() {
     <div className="flex h-screen bg-white">
       {/* Sidebar con contesto */}
       <div className="w-80 border-r border-[#3a88ff]/10 bg-white shadow-sm">
-        <div className="p-4 space-y-4">
+        <div className="p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight text-[#3a88ff]">Contesto</h2>
             <Button
@@ -61,7 +61,7 @@ export function ChatInterface() {
           </div>
 
           {showSettings ? (
-            <form onSubmit={handleContextSubmit} className="space-y-4">
+            <form onSubmit={handleContextSubmit} className="space-y-4 mt-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Team
@@ -103,7 +103,7 @@ export function ChatInterface() {
               </Button>
             </form>
           ) : (
-            <div className="space-y-2 text-sm rounded-lg bg-[#3a88ff]/5 p-3 border border-[#3a88ff]/10">
+            <div className="space-y-2 text-sm rounded-lg bg-[#3a88ff]/5 p-3 border border-[#3a88ff]/10 mt-4">
               <div>
                 <span className="font-medium text-[#3a88ff]">Team:</span> {context.team || 'Non impostato'}
               </div>
@@ -117,30 +117,6 @@ export function ChatInterface() {
               )}
             </div>
           )}
-
-          <div className="pt-4 space-y-4">
-            <h3 className="text-sm font-medium text-[#3a88ff]">Esempi di richieste:</h3>
-            <div className="space-y-2">
-              <button
-                onClick={() => setInput('Definisci OKR per aumentare le vendite')}
-                className="w-full text-left p-2.5 text-sm bg-white border border-[#3a88ff]/20 rounded-lg hover:bg-[#3a88ff]/5 hover:border-[#3a88ff]/30 transition-all duration-200"
-              >
-                "Definisci OKR per aumentare le vendite"
-              </button>
-              <button
-                onClick={() => setInput('Crea OKR per migliorare la customer satisfaction')}
-                className="w-full text-left p-2.5 text-sm bg-white border border-[#3a88ff]/20 rounded-lg hover:bg-[#3a88ff]/5 hover:border-[#3a88ff]/30 transition-all duration-200"
-              >
-                "Crea OKR per migliorare la customer satisfaction"
-              </button>
-              <button
-                onClick={() => setInput('Genera OKR per l\'espansione del mercato')}
-                className="w-full text-left p-2.5 text-sm bg-white border border-[#3a88ff]/20 rounded-lg hover:bg-[#3a88ff]/5 hover:border-[#3a88ff]/30 transition-all duration-200"
-              >
-                "Genera OKR per l'espansione del mercato"
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
