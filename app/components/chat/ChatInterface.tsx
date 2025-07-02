@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { Send, Loader2, Settings2, MessageSquare } from 'lucide-react'
 import { useOKRStore, useOKRActions } from '@/app/lib/store/okr-store'
-import { OkrDisplay } from '@/app/components/okr/OkrDisplay'
+import { OkrMessage } from './OkrMessage'
 
 export function ChatInterface() {
   const [input, setInput] = useState('')
@@ -144,25 +144,30 @@ export function ChatInterface() {
                 <p className="text-lg font-medium text-[#3a88ff]">
                   Inizia a chattare con il tuo coach OKR!
                 </p>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-slate-500">
                   Assicurati di aver impostato il team e il periodo nel contesto.
                 </p>
               </div>
             </div>
           ) : (
-            messages.map((message) => (
+            messages.map((message, index) => (
               <div
                 key={message.id}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-2xl px-4 py-2 rounded-lg shadow-sm ${
+                  className={`max-w-4xl px-4 py-2 rounded-lg ${
                     message.role === 'user'
                       ? 'bg-[#3a88ff] text-white shadow-[#3a88ff]/10'
                       : 'bg-[#3a88ff]/5 text-slate-900 border border-[#3a88ff]/10'
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{message.content}</p>
+                  {message.role === 'assistant' && currentOKR && index === messages.length - 1 && (
+                    <div className="mt-4 pt-4 border-t border-slate-200">
+                      <OkrMessage okrSet={currentOKR} />
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -190,7 +195,7 @@ export function ChatInterface() {
               placeholder={
                 currentOKR
                   ? "Chiedi di modificare gli OKR esistenti..."
-                  : "Descrivi i tuoi OKR o obiettivi..."
+                  : "Chiedi di generare nuovi OKR..."
               }
               className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isLoading}
@@ -210,15 +215,6 @@ export function ChatInterface() {
           </form>
         </div>
       </div>
-
-      {/* Pannello OKR */}
-      {currentOKR && (
-        <div className="w-96 border-l border-[#3a88ff]/10 bg-white overflow-y-auto">
-          <div className="p-4">
-            <OkrDisplay okrSet={currentOKR} />
-          </div>
-        </div>
-      )}
     </div>
   )
 } 
