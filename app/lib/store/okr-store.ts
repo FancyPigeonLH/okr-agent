@@ -7,8 +7,36 @@ type Company = {
   vision: string
 }
 
+type Team = {
+  id: string
+  name: string
+  type: string
+  impact: number
+}
+
+type Initiative = {
+  id: string
+  description: string
+  status: number
+  checkInDays: number
+  isNew: boolean
+  relativeImpact: number
+  overallImpact: number
+}
+
+type User = {
+  id: string
+  name: string
+  surname: string
+  fullName: string
+  email: string
+  initiatives: Initiative[]
+}
+
 interface OKRContext {
   selectedCompany: Company | null
+  selectedTeam: Team | null
+  selectedUser: User | null
 }
 
 interface OKRState {
@@ -27,7 +55,9 @@ export const useOKRStore = create<OKRState>((set) => ({
   isLoading: false,
   error: null,
   context: {
-    selectedCompany: null
+    selectedCompany: null,
+    selectedTeam: null,
+    selectedUser: null
   },
   setContext: (newContext) =>
     set((state) => ({

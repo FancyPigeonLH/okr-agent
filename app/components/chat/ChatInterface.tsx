@@ -6,6 +6,8 @@ import { Send, Loader2, Settings2, MessageSquare } from 'lucide-react'
 import { useOKRStore, useOKRActions } from '@/app/lib/store/okr-store'
 import { OkrMessage } from './OkrMessage'
 import { CompanyContext } from './CompanyContext'
+import { TeamContext } from './TeamContext'
+import { UserContext } from './UserContext'
 
 export function ChatInterface() {
   const [input, setInput] = useState('')
@@ -34,12 +36,24 @@ export function ChatInterface() {
   const handleContextSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Genera la richiesta automatica basata sul contesto della company
+    // Genera la richiesta automatica basata sul contesto disponibile
+    let autoRequest = 'Genera degli OKR'
+    
     if (context.selectedCompany) {
-      const autoRequest = `Genera degli OKR per un membro di ${context.selectedCompany.name}`
-      setInput(autoRequest)
+      autoRequest += ` per ${context.selectedCompany.name}`
+      if (context.selectedTeam) {
+        autoRequest += `, specificamente per il team ${context.selectedTeam.name}`
+      }
+      if (context.selectedUser) {
+        autoRequest += `. Considera che l'utente ${context.selectedUser.fullName} ha le seguenti iniziative assegnate:\n`
+        context.selectedUser.initiatives.forEach((initiative, index) => {
+          autoRequest += `${index + 1}. ${initiative.description}\n`
+        })
+        autoRequest += '\nGenera degli OKR che tengano conto di queste iniziative.'
+      }
     }
     
+    setInput(autoRequest)
     setShowSettings(false)
   }
 
@@ -64,14 +78,36 @@ export function ChatInterface() {
             <form onSubmit={handleContextSubmit} className="space-y-4 mt-4">
               <CompanyContext
                 selectedCompany={context.selectedCompany}
-                onCompanySelect={(company) => setContext({ selectedCompany: company })}
+                onCompanySelect={(company) => {
+                  setContext({ 
+                    selectedCompany: company,
+                    selectedTeam: null, // Reset team selection when company changes
+                    selectedUser: null  // Reset user selection when company changes
+                  })
+                }}
+              />
+              <TeamContext
+                selectedTeam={context.selectedTeam}
+                onTeamSelect={(team) => {
+                  setContext({ 
+                    selectedTeam: team,
+                    selectedUser: null // Reset user selection when team changes
+                  })
+                }}
+                companyId={context.selectedCompany?.id || null}
+                disabled={!context.selectedCompany}
+              />
+              <UserContext
+                selectedUser={context.selectedUser}
+                onUserSelect={(user) => setContext({ selectedUser: user })}
+                companyId={context.selectedCompany?.id || null}
+                disabled={!context.selectedCompany}
               />
               <Button 
                 type="submit" 
                 className="w-full bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md"
-                disabled={!context.selectedCompany}
               >
-                Genera Prompt
+                Usa Contesto
               </Button>
             </form>
           ) : (
@@ -81,6 +117,26 @@ export function ChatInterface() {
                   <div>
                     <span className="font-medium text-[#3a88ff]">Company:</span> {context.selectedCompany.name}
                   </div>
+                  {context.selectedTeam && (
+                    <div>
+                      <span className="font-medium text-[#3a88ff]">Team:</span> {context.selectedTeam.name}
+                    </div>
+                  )}
+                  {context.selectedUser && (
+                    <div>
+                      <span className="font-medium text-[#3a88ff]">Utente:</span> {context.selectedUser.fullName}
+                      {context.selectedUser.initiatives.length > 0 && (
+                        <div className="mt-2">
+                          <span className="font-medium text-[#3a88ff]">Iniziative assegnate:</span>
+                          <ul className="mt-1 space-y-1 text-xs text-slate-600">
+                            {context.selectedUser.initiatives.map((initiative) => (
+                              <li key={initiative.id}>• {initiative.description}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <span className="font-medium text-[#3a88ff]">Mission:</span>
                     <p className="mt-1 text-slate-600">{context.selectedCompany.mission}</p>
@@ -91,7 +147,7 @@ export function ChatInterface() {
                   </div>
                 </>
               ) : (
-                <p className="text-slate-500">Seleziona una company per iniziare</p>
+                <p className="text-slate-500">Nessun contesto selezionato. Puoi procedere con una richiesta libera o selezionare un contesto specifico.</p>
               )}
             </div>
           )}
@@ -173,14 +229,14 @@ export function ChatInterface() {
               placeholder={
                 currentOKR
                   ? "Chiedi di modificare gli OKR esistenti..."
-                  : "Chiedi di generare nuovi OKR..."
+                  : "Scrivi la tua richiesta per gli OKR..."
               }
               className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isLoading || !context.selectedCompany}
+              disabled={isLoading}
             />
             <Button 
               type="submit" 
-              disabled={isLoading || !input.trim() || !context.selectedCompany} 
+              disabled={isLoading || !input.trim()} 
               size="sm" 
               className="bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
