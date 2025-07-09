@@ -39,7 +39,6 @@ export interface Initiative {
 export interface OKRSet {
   id: string
   team: string
-  period: string
   objectives: Objective[]
   keyResults: KeyResult[]
   risks: Risk[]
@@ -74,7 +73,6 @@ export interface ValidationResult {
 // Interfaccia per il contesto di generazione
 export interface GenerationContext {
   team: string
-  period: string
   objective?: string
   categories?: OKRCategory[]
 } 

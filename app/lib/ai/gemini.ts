@@ -110,15 +110,13 @@ export class OKRGenerator {
       const parsedData = yaml.load(newYamlContent) as unknown
       const partialOKRSet = this.parseYAMLToPartialOKRSet(parsedData, {
         team: currentOKR.team,
-        period: currentOKR.period,
         categories
       })
 
       return {
         okrSet: partialOKRSet,
         validationResult: validateOKRSet(this.convertPartialToFullOKRSet(partialOKRSet, {
-          team: currentOKR.team,
-          period: currentOKR.period
+          team: currentOKR.team
         }))
       }
 
@@ -254,13 +252,12 @@ export class OKRGenerator {
     }
   }
 
-  private convertPartialToFullOKRSet(partialOKRSet: PartialOKRSet, context: { team: string; period: string }): OKRSet {
+  private convertPartialToFullOKRSet(partialOKRSet: PartialOKRSet, context: { team: string }): OKRSet {
     const now = new Date()
     
     return {
       id: `okr_${Date.now()}`,
       team: context.team,
-      period: context.period,
       objectives: partialOKRSet.objectives || [],
       keyResults: partialOKRSet.keyResults || [],
       risks: partialOKRSet.risks || [],

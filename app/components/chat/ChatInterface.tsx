@@ -83,6 +83,17 @@ export function ChatInterface() {
     setShowSettings(false)
   }
 
+  // Prepara il contesto da passare al CategoryDebugger
+  const debuggerContext = {
+    company: context.selectedCompany ? { name: context.selectedCompany.name } : undefined,
+    team: context.selectedTeam ? { name: context.selectedTeam.name } : undefined,
+    user: context.selectedUser
+      ? {
+          fullName: context.selectedUser.fullName,
+          initiatives: context.selectedUser.initiatives || []
+        }
+      : undefined
+  }
 
 
   return (
@@ -215,6 +226,7 @@ export function ChatInterface() {
                 userInput={pendingUserInput}
                 onCategoriesConfirm={handleCategoriesConfirm}
                 onCancel={handleCategoryDebuggerCancel}
+                context={debuggerContext}
               />
             </div>
           )}
@@ -267,6 +279,7 @@ export function ChatInterface() {
                         userInput={pendingUserInput}
                         onCategoriesConfirm={handleCategoriesConfirm}
                         onCancel={handleCategoryDebuggerCancel}
+                        context={debuggerContext}
                       />
                     </div>
                   )}
@@ -289,22 +302,10 @@ export function ChatInterface() {
 
         {/* Area input con selettore categorie */}
         <div className="border-t border-[#3a88ff]/10 bg-white">
-          {/* Selettore categorie sopra l'input */}
-          {!showCategoryDebugger && (
-            <div className="p-4 pb-2">
-              <CategorySelector
-                selectedCategories={selectedCategories}
-                onCategoriesChange={setSelectedCategories}
-                onConfirm={() => {}} // Non serve conferma, cambia immediatamente
-                onCancel={() => {}} // Non serve annulla
-                compact={true} // Modalità compatta
-              />
-            </div>
-          )}
           
           {/* Input */}
-          <div className="p-4 pt-2">
-            <form onSubmit={handleSubmit} className="flex space-x-2">
+          <div className="p-6">
+            <form onSubmit={handleSubmit} className="flex space-x-3">
               <input
                 type="text"
                 value={input}
@@ -314,20 +315,20 @@ export function ChatInterface() {
                     ? "Chiedi di modificare gli OKR esistenti..."
                     : "Scrivi la tua richiesta per gli OKR..."
                 }
-                className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-14 w-full rounded-lg border border-[#3a88ff]/20 bg-white px-4 py-3 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-base file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isLoading}
               />
               <Button 
                 type="submit" 
                 disabled={isLoading || !input.trim()} 
-                size="sm" 
-                className="bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                size="lg" 
+                className="bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed h-14 px-6 text-lg"
                 title="Invia messaggio"
               >
                 {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <Send className="h-4 w-4" />
+                  <Send className="h-5 w-5" />
                 )}
               </Button>
             </form>

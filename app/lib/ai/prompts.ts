@@ -13,21 +13,18 @@
  * // Genera solo Objectives e Key Results
  * const context: GenerationContext = {
  *   team: "Marketing",
- *   period: "Q1 2024",
  *   categories: ['objectives', 'key_results']
  * }
  * 
  * // Genera solo Rischi per Key Results esistenti
  * const context: GenerationContext = {
  *   team: "Marketing", 
- *   period: "Q1 2024",
  *   categories: ['risks']
  * }
  * 
  * // Genera tutto (comportamento predefinito)
  * const context: GenerationContext = {
  *   team: "Marketing",
- *   period: "Q1 2024"
  *   // categories non specificato = tutte le categorie
  * }
  */
@@ -118,9 +115,8 @@ ${relevantRules}
 
 Contesto:
 - Team: ${context.team}
-- Periodo: ${context.period}
-${context.objective ? `- Obiettivo fornito dall'utente: "${context.objective}"` : ''}
 - Categorie richieste: ${requestedCategories.join(', ')}
+${context.objective ? `- Obiettivo fornito dall'utente: "${context.objective}"` : ''}
 
 Richiesta dell'utente: ${userRequest}
 

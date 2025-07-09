@@ -6,13 +6,18 @@ import { Button } from '@/app/components/ui/button'
 import { Checkbox } from '@/app/components/ui/checkbox'
 import { OKRCategory } from '@/app/types/okr'
 import { detectOKRCategories } from '@/lib/utils'
-import { Brain, CheckCircle, XCircle, AlertCircle, ArrowRight } from 'lucide-react'
+import { Brain, CheckCircle, XCircle, AlertCircle, ArrowRight, Building2, Users2, User2, ListChecks } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface CategoryDebuggerProps {
   userInput: string
   onCategoriesConfirm: (categories: OKRCategory[]) => void
   onCancel: () => void
+  context?: {
+    company?: { name: string }
+    team?: { name: string }
+    user?: { fullName: string, initiatives?: { id: string, description: string }[] }
+  }
 }
 
 const categoryLabels: Record<OKRCategory, { label: string; description: string; color: string }> = {
@@ -38,7 +43,7 @@ const categoryLabels: Record<OKRCategory, { label: string; description: string; 
   }
 }
 
-export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: CategoryDebuggerProps) {
+export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, context }: CategoryDebuggerProps) {
   const [detectedCategories, setDetectedCategories] = useState<OKRCategory[]>([])
   const [selectedCategories, setSelectedCategories] = useState<OKRCategory[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(true)
@@ -145,6 +150,52 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: C
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6 p-6">
+        {/* Recap contesto utente */}
+        {context && (context.company || context.team || (context.user && context.user.fullName)) && (
+          <div className="bg-[#eaf3ff] border border-[#3a88ff]/20 rounded-lg p-4 mb-2 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-[#3a88ff]">Contesto attivo:</span>
+            </div>
+            <div className="flex flex-wrap gap-4 items-center mt-1">
+              {context.company && (
+                <span className="flex items-center gap-1 text-sm text-blue-700 bg-blue-100 px-2 py-1 rounded">
+                  <Building2 className="h-4 w-4" />
+                  {context.company.name}
+                </span>
+              )}
+              {context.team && (
+                <span className="flex items-center gap-1 text-sm text-green-700 bg-green-100 px-2 py-1 rounded">
+                  <Users2 className="h-4 w-4" />
+                  {context.team.name}
+                </span>
+              )}
+              {context.user && context.user.fullName && (
+                <span className="flex items-center gap-1 text-sm text-purple-700 bg-purple-100 px-2 py-1 rounded">
+                  <User2 className="h-4 w-4" />
+                  {context.user.fullName}
+                </span>
+              )}
+            </div>
+            {context.user && context.user.initiatives && context.user.initiatives.length > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <ListChecks className="h-4 w-4 text-slate-500" />
+                <span className="text-xs text-slate-700">Iniziative assegnate:</span>
+                <ul className="flex flex-wrap gap-2 ml-2">
+                  {context.user.initiatives.slice(0, 3).map(init => (
+                    <li key={init.id} className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs">
+                      {init.description}
+                    </li>
+                  ))}
+                  {context.user.initiatives.length > 3 && (
+                    <li className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
+                      +{context.user.initiatives.length - 3} altre
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
         {/* Input dell'utente */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="font-medium text-gray-700 mb-2">📝 Il tuo prompt:</h3>
@@ -168,7 +219,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: C
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <h3 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
                 <Brain className="h-4 w-4" />
-                Ragionamento del sistema:
+                Analisi degli elementi della struttura OKR
               </h3>
               <pre className="text-sm text-blue-700 whitespace-pre-wrap font-mono">
                 {analysisReasoning}
@@ -179,7 +230,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: C
             <div>
               <h3 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                Categorie rilevate automaticamente:
+                Elementi OKR rilevati
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 {(Object.keys(categoryLabels) as OKRCategory[]).map((category) => {
@@ -213,9 +264,6 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: C
                           <XCircle className="h-4 w-4 text-gray-400" />
                         )}
                       </div>
-                      <p className="text-xs text-gray-600 ml-6">
-                        {categoryLabels[category].description}
-                      </p>
                     </div>
                   )
                 })}
@@ -230,7 +278,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: C
                 onClick={handleSelectAll}
                 className="flex-1"
               >
-                Seleziona Tutte
+                Seleziona tutti
               </Button>
               <Button
                 variant="outline"
@@ -238,7 +286,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: C
                 onClick={handleSelectNone}
                 className="flex-1"
               >
-                Deseleziona Tutte
+                Deseleziona tutti
               </Button>
             </div>
 
@@ -251,8 +299,8 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: C
                   : 'bg-green-100 text-green-700'
               )}>
                 {selectedCategories.length === 0 
-                  ? '⚠️ Nessuna categoria selezionata' 
-                  : `✅ ${selectedCategories.length} categoria${selectedCategories.length !== 1 ? 'e' : ''} selezionata${selectedCategories.length !== 1 ? 'e' : ''}`
+                  ? '⚠️ Nessun elemento selezionato' 
+                  : `✅ ${selectedCategories.length} elementi selezionati`
                 }
               </span>
             </div>
@@ -274,7 +322,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel }: C
             className="flex-1 bg-[#3a88ff] hover:bg-[#3a88ff]/90"
           >
             <ArrowRight className="h-4 w-4 mr-2" />
-            Procedi con {selectedCategories.length} categoria{selectedCategories.length !== 1 ? 'e' : ''}
+            Conferma
           </Button>
         </div>
       </CardContent>

@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
     // Valida e normalizza il contesto
     const generationContext: GenerationContext = {
       team: context.team,
-      period: context.period,
       objective: context.objective,
       categories: context.categories || ['objectives', 'key_results', 'risks', 'initiatives']
     }
