@@ -1,18 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/app/components/ui/button'
 import { Send, Loader2, Settings2, MessageSquare, X } from 'lucide-react'
 import { useOKRStore, useOKRActions } from '@/app/lib/store/okr-store'
 import { OkrMessage } from './OkrMessage'
 import { CompanyContext } from './CompanyContext'
 import { TeamContext } from './TeamContext'
 import { UserContext } from './UserContext'
+import { CategorySelector } from './CategorySelector'
+import { CategoryDebugger } from './CategoryDebugger'
+import { detectOKRCategories } from '@/lib/utils'
+import { OKRCategory } from '@/app/types/okr'
+import React from 'react'
 
 export function ChatInterface() {
+  type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; okr?: any }
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
-  const { messages, currentOKR, isLoading, context, setContext, error } = useOKRStore()
+  const [selectedCategories, setSelectedCategories] = useState<OKRCategory[]>([])
+  const [showCategoryDebugger, setShowCategoryDebugger] = useState(false)
+  const [pendingUserInput, setPendingUserInput] = useState('')
+  const [isFirstInteraction, setIsFirstInteraction] = useState(true)
+  const { messages, currentOKR, isLoading, context, setContext } = useOKRStore() as { messages: ChatMessage[], currentOKR: any, isLoading: boolean, context: any, setContext: any }
   const { generateOKR, iterateOKR } = useOKRActions()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,38 +32,45 @@ export function ChatInterface() {
     const userInput = input.trim()
     setInput('')
 
+    // Aggiungi subito il messaggio utente alla chat
+    useOKRStore.setState(state => ({
+      messages: [
+        ...state.messages,
+        { id: Date.now().toString(), role: 'user' as 'user', content: userInput }
+      ]
+    }))
+
+    // Mostra il CategoryDebugger
+    setPendingUserInput(userInput)
+    setShowCategoryDebugger(true)
+  }
+
+  const handleCategoriesConfirm = async (categories: OKRCategory[]) => {
+    setSelectedCategories(categories)
+    setShowCategoryDebugger(false)
+    setIsFirstInteraction(false)
+    
+    // Procedi con la generazione/iterazione
     try {
       if (currentOKR) {
-        await iterateOKR(userInput)
+        // Aggiorna solo la risposta dell'assistente
+        await iterateOKR(pendingUserInput, categories, { skipUserMessage: true })
       } else {
-        await generateOKR(userInput)
+        await generateOKR(pendingUserInput, categories, { skipUserMessage: true })
       }
     } catch (error) {
       console.error('Errore durante l\'operazione:', error)
     }
   }
 
+  const handleCategoryDebuggerCancel = () => {
+    setShowCategoryDebugger(false)
+    setPendingUserInput('')
+  }
+
   const handleContextSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Genera la richiesta automatica basata sul contesto disponibile
-    let autoRequest = 'Genera degli OKR'
-    
-    if (context.selectedCompany) {
-      autoRequest += ` per ${context.selectedCompany.name}`
-      if (context.selectedTeam) {
-        autoRequest += `, specificamente per il team ${context.selectedTeam.name}`
-      }
-      if (context.selectedUser) {
-        autoRequest += `. Considera che l'utente ${context.selectedUser.fullName} ha le seguenti iniziative assegnate:\n`
-        context.selectedUser.initiatives.forEach((initiative, index) => {
-          autoRequest += `${index + 1}. ${initiative.description}\n`
-        })
-        autoRequest += '\nGenera degli OKR che tengano conto di queste iniziative.'
-      }
-    }
-    
-    setInput(autoRequest)
+    // Ora NON generiamo più un prompt automatico. Solo chiudiamo il pannello.
     setShowSettings(false)
   }
 
@@ -65,6 +82,8 @@ export function ChatInterface() {
     })
     setShowSettings(false)
   }
+
+
 
   return (
     <div className="flex h-screen bg-white">
@@ -149,7 +168,7 @@ export function ChatInterface() {
                         <div className="mt-2">
                           <span className="font-medium text-[#3a88ff]">Iniziative assegnate:</span>
                           <ul className="mt-1 space-y-1 text-xs text-slate-600">
-                            {context.selectedUser.initiatives.map((initiative) => (
+                            {context.selectedUser.initiatives.map((initiative: { id: string; description: string }) => (
                               <li key={initiative.id}>• {initiative.description}</li>
                             ))}
                           </ul>
@@ -189,6 +208,17 @@ export function ChatInterface() {
 
         {/* Area messaggi */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Debugger categorie SOLO se PRIMA richiesta */}
+          {showCategoryDebugger && isFirstInteraction && (
+            <div className="flex justify-center py-4">
+              <CategoryDebugger
+                userInput={pendingUserInput}
+                onCategoriesConfirm={handleCategoriesConfirm}
+                onCancel={handleCategoryDebuggerCancel}
+              />
+            </div>
+          )}
+
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
               <div className="p-4 rounded-full bg-[#3a88ff]/10 shadow-inner">
@@ -204,27 +234,45 @@ export function ChatInterface() {
               </div>
             </div>
           ) : (
-            messages.map((message, index) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-4xl px-4 py-2 rounded-lg ${
-                    message.role === 'user'
-                      ? 'bg-[#3a88ff] text-white shadow-[#3a88ff]/10'
-                      : 'bg-[#3a88ff]/5 text-slate-900 border border-[#3a88ff]/10'
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                  {message.role === 'assistant' && currentOKR && index === messages.length - 1 && (
-                    <div className="mt-4 pt-4 border-t border-slate-200">
-                      <OkrMessage okrSet={currentOKR} />
+            messages.map((message, index) => {
+              const isLastUserMsg =
+                message.role === 'user' &&
+                messages.slice(index + 1).findIndex(m => m.role === 'user') === -1
+
+              return (
+                <React.Fragment key={message.id}>
+                  <div
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-4xl px-4 py-2 rounded-lg ${
+                        message.role === 'user'
+                          ? 'bg-[#3a88ff] text-white shadow-[#3a88ff]/10'
+                          : 'bg-[#3a88ff]/5 text-slate-900 border border-[#3a88ff]/10'
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                      {/* Mostra OkrMessage solo se il messaggio dell'assistente ha okr */}
+                      {message.role === 'assistant' && message.okr && (
+                        <div className="mt-4 pt-4 border-t border-slate-200">
+                          <OkrMessage okrSet={message.okr} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Mostra il CategoryDebugger DOPO l'ultimo messaggio utente se attivo e NON è la prima richiesta */}
+                  {showCategoryDebugger && !isFirstInteraction && isLastUserMsg && messages.length > 0 && (
+                    <div className="flex justify-center py-4">
+                      <CategoryDebugger
+                        userInput={pendingUserInput}
+                        onCategoriesConfirm={handleCategoriesConfirm}
+                        onCancel={handleCategoryDebuggerCancel}
+                      />
                     </div>
                   )}
-                </div>
-              </div>
-            ))
+                </React.Fragment>
+              )
+            })
           )}
 
           {isLoading && (
@@ -239,34 +287,51 @@ export function ChatInterface() {
           )}
         </div>
 
-        {/* Input */}
-        <div className="border-t border-[#3a88ff]/10 bg-white p-4">
-          <form onSubmit={handleSubmit} className="flex space-x-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={
-                currentOKR
-                  ? "Chiedi di modificare gli OKR esistenti..."
-                  : "Scrivi la tua richiesta per gli OKR..."
-              }
-              className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isLoading}
-            />
-            <Button 
-              type="submit" 
-              disabled={isLoading || !input.trim()} 
-              size="sm" 
-              className="bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
-          </form>
+        {/* Area input con selettore categorie */}
+        <div className="border-t border-[#3a88ff]/10 bg-white">
+          {/* Selettore categorie sopra l'input */}
+          {!showCategoryDebugger && (
+            <div className="p-4 pb-2">
+              <CategorySelector
+                selectedCategories={selectedCategories}
+                onCategoriesChange={setSelectedCategories}
+                onConfirm={() => {}} // Non serve conferma, cambia immediatamente
+                onCancel={() => {}} // Non serve annulla
+                compact={true} // Modalità compatta
+              />
+            </div>
+          )}
+          
+          {/* Input */}
+          <div className="p-4 pt-2">
+            <form onSubmit={handleSubmit} className="flex space-x-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={
+                  currentOKR
+                    ? "Chiedi di modificare gli OKR esistenti..."
+                    : "Scrivi la tua richiesta per gli OKR..."
+                }
+                className="flex h-9 w-full rounded-md border border-[#3a88ff]/20 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#3a88ff] focus-visible:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isLoading}
+              />
+              <Button 
+                type="submit" 
+                disabled={isLoading || !input.trim()} 
+                size="sm" 
+                className="bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Invia messaggio"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

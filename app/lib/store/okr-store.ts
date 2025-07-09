@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { OKRCategory, PartialOKRSet } from '@/app/types/okr'
 
 type Company = {
   id: string
@@ -41,7 +42,7 @@ interface OKRContext {
 
 interface OKRState {
   messages: Array<{ id: string; role: 'user' | 'assistant'; content: string }>
-  currentOKR: any | null
+  currentOKR: PartialOKRSet | null
   isLoading: boolean
   context: OKRContext
   error: string | null
@@ -67,9 +68,17 @@ export const useOKRStore = create<OKRState>((set) => ({
 }))
 
 export const useOKRActions = () => {
-  const generateOKR = async (input: string) => {
+  const generateOKR = async (input: string, categories?: OKRCategory[], options?: { skipUserMessage?: boolean }) => {
     const store = useOKRStore.getState()
     set({ isLoading: true, error: null })
+
+    // DEBUG: Verifica cosa viene inviato all'API
+    const finalCategories = categories || ['objectives', 'key_results', 'risks', 'initiatives']
+    console.log('🚀 DEBUG API GENERATE:')
+    console.log('📝 Input:', input)
+    console.log('🎯 Categorie ricevute:', categories)
+    console.log('✅ Categorie finali inviate:', finalCategories)
+    console.log('---')
 
     try {
       const response = await fetch('/api/okr/generate', {
@@ -77,31 +86,54 @@ export const useOKRActions = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input,
-          context: store.context,
+          context: {
+            ...store.context,
+            categories: finalCategories
+          },
         }),
       })
 
-      if (!response.ok) throw new Error('Errore nella generazione degli OKR')
+      if (!response.ok) {
+        // Prova a leggere il testo della risposta per errori specifici
+        const text = await response.text()
+        if (response.status === 503 || text.toLowerCase().includes('overload') || text.toLowerCase().includes('service unavailable')) {
+          set({ isLoading: false, error: 'Il sistema AI è temporaneamente sovraccarico. Riprova tra qualche minuto.' })
+          return
+        }
+        throw new Error('Errore nella generazione degli OKR')
+      }
 
       const data = await response.json()
       set((state) => ({
         messages: [
           ...state.messages,
-          { id: Date.now().toString(), role: 'user', content: input },
-          { id: (Date.now() + 1).toString(), role: 'assistant', content: data.message },
+          ...(options?.skipUserMessage ? [] : [{ id: Date.now().toString(), role: 'user', content: input }]),
+          { id: (Date.now() + 1).toString(), role: 'assistant', content: data.message, okr: data.okr },
         ],
         currentOKR: data.okr,
         isLoading: false,
       }))
     } catch (error) {
+      // Gestione errore overload anche qui
+      const msg = String(error).toLowerCase()
+      if (msg.includes('overload') || msg.includes('service unavailable') || msg.includes('503')) {
+        set({ isLoading: false, error: 'Il sistema AI è temporaneamente sovraccarico. Riprova tra qualche minuto.' })
+        return
+      }
       set({ isLoading: false, error: 'Errore nella generazione degli OKR' })
       console.error('Errore:', error)
     }
   }
 
-  const iterateOKR = async (input: string) => {
+  const iterateOKR = async (input: string, categories?: OKRCategory[], options?: { skipUserMessage?: boolean }) => {
     const store = useOKRStore.getState()
     set({ isLoading: true, error: null })
+
+    // Se non c'è un currentOKR, mostra errore user-friendly
+    if (!store.currentOKR) {
+      set({ isLoading: false, error: 'Non puoi iterare: nessun OKR generato precedentemente.' })
+      return
+    }
 
     try {
       const response = await fetch('/api/okr/iterate', {
@@ -111,6 +143,7 @@ export const useOKRActions = () => {
           input,
           context: store.context,
           currentOKR: store.currentOKR,
+          categories: categories || ['objectives', 'key_results', 'risks', 'initiatives']
         }),
       })
 
@@ -120,8 +153,8 @@ export const useOKRActions = () => {
       set((state) => ({
         messages: [
           ...state.messages,
-          { id: Date.now().toString(), role: 'user', content: input },
-          { id: (Date.now() + 1).toString(), role: 'assistant', content: data.message },
+          ...(options?.skipUserMessage ? [] : [{ id: Date.now().toString(), role: 'user', content: input }]),
+          { id: (Date.now() + 1).toString(), role: 'assistant', content: data.message, okr: data.okr },
         ],
         currentOKR: data.okr,
         isLoading: false,

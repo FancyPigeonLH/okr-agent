@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { OKRGenerator } from '@/app/lib/ai/gemini'
+import { GenerationContext } from '@/app/types/okr'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { input, context } = body
+
+    // DEBUG: Verifica cosa riceve l'API
+    console.log('📡 DEBUG API RICEVUTE:')
+    console.log('📝 Input ricevuto:', input)
+    console.log('🎯 Categorie ricevute:', context.categories)
+    console.log('---')
 
     if (!input || !context) {
       return NextResponse.json(
@@ -20,12 +27,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Valida e normalizza il contesto
+    const generationContext: GenerationContext = {
+      team: context.team,
+      period: context.period,
+      objective: context.objective,
+      categories: context.categories || ['objectives', 'key_results', 'risks', 'initiatives']
+    }
+
     const generator = new OKRGenerator()
-    const result = await generator.generateOKR(input, context)
+    const result = await generator.generateOKR(input, generationContext)
 
     return NextResponse.json({
       message: 'OKR generati con successo! Cosa ne pensi? 😊',
-      okr: result.okrSet
+      okr: result.okrSet,
+      categories: generationContext.categories
     })
 
   } catch (error) {

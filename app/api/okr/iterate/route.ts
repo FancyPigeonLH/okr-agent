@@ -4,7 +4,7 @@ import { OKRGenerator } from '@/app/lib/ai/gemini'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { input, context, currentOKR } = body
+    const { input, currentOKR, categories } = body
 
     if (!input || !currentOKR) {
       return NextResponse.json(
@@ -21,11 +21,12 @@ export async function POST(request: NextRequest) {
     }
 
     const generator = new OKRGenerator()
-    const result = await generator.iterateOKR(currentOKR, input)
+    const result = await generator.iterateOKR(currentOKR, input, categories)
 
     return NextResponse.json({
       message: 'OKR aggiornati con successo! Ti piacciono le modifiche? 😊',
-      okr: result.okrSet
+      okr: result.okrSet,
+      categories: categories || ['objectives', 'key_results', 'risks', 'initiatives']
     })
 
   } catch (error) {

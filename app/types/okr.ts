@@ -1,3 +1,5 @@
+export type OKRCategory = 'objectives' | 'key_results' | 'risks' | 'initiatives'
+
 export interface Objective {
   id: string
   title: string
@@ -23,8 +25,6 @@ export interface Risk {
   keyResultId: string
   title: string
   description: string
-  probability: 'low' | 'medium' | 'high'
-  impact: 'low' | 'medium' | 'high'
   isExternal: boolean
   isInternal: boolean
 }
@@ -48,16 +48,33 @@ export interface OKRSet {
   updatedAt: Date
 }
 
+// Interfaccia per risposte parziali
+export interface PartialOKRSet {
+  objectives?: Objective[]
+  keyResults?: KeyResult[]
+  risks?: Risk[]
+  initiatives?: Initiative[]
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
   okrSetId?: string
+  categories?: OKRCategory[]
 }
 
 export interface ValidationResult {
   isValid: boolean
   errors: string[]
   warnings: string[]
+}
+
+// Interfaccia per il contesto di generazione
+export interface GenerationContext {
+  team: string
+  period: string
+  objective?: string
+  categories?: OKRCategory[]
 } 
