@@ -90,15 +90,12 @@ export class OKRGenerator {
     userRequest: string,
     categories?: OKRCategory[]
   ): Promise<{ okrSet: PartialOKRSet; validationResult: ValidationResult }> {
+    const prompt = generateIterationPrompt(this.convertOKRSetToYAML(currentOKR), userRequest, categories)
+    
+    let output: string = ''
     try {
-      // Converti OKRSet in YAML per il prompt
-      const yamlContent = this.convertOKRSetToYAML(currentOKR)
-      const prompt = generateIterationPrompt(yamlContent, userRequest, categories)
-
-      // Genera con Gemini
       const result = await this.model.generateContent(prompt)
-      const response = await result.response
-      const output = response.text()
+      output = result.response.text()
 
       // Estrai e parsa YAML
       const yamlMatch = output.match(/```yaml\n([\s\S]*?)\n```/)
@@ -122,6 +119,41 @@ export class OKRGenerator {
 
     } catch (error) {
       console.error('Errore nell\'iterazione OKR:', error)
+      
+      // Se è un errore YAML, prova a pulire e riprovare
+      if (error instanceof Error && error.message.includes('bad indentation') && output) {
+        console.log('Tentativo di pulizia YAML...')
+        try {
+          // Estrai di nuovo il contenuto e prova a pulirlo
+          const yamlMatch = output.match(/```yaml\n([\s\S]*?)\n```/)
+          if (yamlMatch) {
+            let cleanedYaml = yamlMatch[1]
+            
+            // Rimuovi righe problematiche con caratteri spezzati
+            cleanedYaml = cleanedYaml
+              .split('\n')
+              .filter((line: string) => !line.includes('...') && line.trim().length > 0)
+              .join('\n')
+            
+            // Prova a parsare il YAML pulito
+            const parsedData = yaml.load(cleanedYaml) as unknown
+            const partialOKRSet = this.parseYAMLToPartialOKRSet(parsedData, {
+              team: currentOKR.team,
+              categories
+            })
+
+            return {
+              okrSet: partialOKRSet,
+              validationResult: validateOKRSet(this.convertPartialToFullOKRSet(partialOKRSet, {
+                team: currentOKR.team
+              }))
+            }
+          }
+        } catch (retryError) {
+          console.error('Anche il retry è fallito:', retryError)
+        }
+      }
+      
       throw new Error(`Errore nell'iterazione: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`)
     }
   }

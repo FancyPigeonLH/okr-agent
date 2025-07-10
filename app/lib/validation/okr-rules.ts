@@ -5,13 +5,13 @@ export const LINKHUB_RULES = {
     maxLength: 100,
     minLength: 10,
     mustBeQualitative: true,
-    mustBeTimeBound: true,
+    mustBeTimeBound: false, // Gli objectives NON devono essere time-bound
     mustBeInspirational: true,
     forbiddenWords: ['numero', 'percentuale', '%', '€', '$', 'quantità', 'totale']
   },
   keyResults: {
-    minPerObjective: 3,
-    maxPerObjective: 5,
+    minPerObjective: 1, // Esattamente 1 Key Result per Objective
+    maxPerObjective: 1, // Esattamente 1 Key Result per Objective
     mustBeQuantitative: true,
     mustBeMeasurable: true,
     mustBeSpecific: true,

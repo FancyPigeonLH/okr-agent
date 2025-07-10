@@ -18,11 +18,6 @@ type Team = {
 type Initiative = {
   id: string
   description: string
-  status: number
-  checkInDays: number
-  isNew: boolean
-  relativeImpact: number
-  overallImpact: number
 }
 
 type User = {
@@ -34,6 +29,10 @@ type User = {
   initiatives: Initiative[]
 }
 
+type Message =
+  | { id: string, role: 'user', content: string }
+  | { id: string, role: 'assistant', content: string, okr?: PartialOKRSet }
+
 interface OKRContext {
   selectedCompany: Company | null
   selectedTeam: Team | null
@@ -41,7 +40,7 @@ interface OKRContext {
 }
 
 interface OKRState {
-  messages: Array<{ id: string; role: 'user' | 'assistant'; content: string }>
+  messages: Message[]
   currentOKR: PartialOKRSet | null
   isLoading: boolean
   context: OKRContext
@@ -107,7 +106,9 @@ export const useOKRActions = () => {
       set((state) => ({
         messages: [
           ...state.messages,
-          ...(options?.skipUserMessage ? [] : [{ id: Date.now().toString(), role: 'user', content: input }]),
+          ...(options?.skipUserMessage
+            ? []
+            : [{ id: Date.now().toString(), role: 'user', content: input } as Message]),
           { id: (Date.now() + 1).toString(), role: 'assistant', content: data.message, okr: data.okr },
         ],
         currentOKR: data.okr,
@@ -153,7 +154,9 @@ export const useOKRActions = () => {
       set((state) => ({
         messages: [
           ...state.messages,
-          ...(options?.skipUserMessage ? [] : [{ id: Date.now().toString(), role: 'user', content: input }]),
+          ...(options?.skipUserMessage
+            ? []
+            : [{ id: Date.now().toString(), role: 'user', content: input } as Message]),
           { id: (Date.now() + 1).toString(), role: 'assistant', content: data.message, okr: data.okr },
         ],
         currentOKR: data.okr,

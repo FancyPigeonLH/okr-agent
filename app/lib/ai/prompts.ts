@@ -36,32 +36,6 @@ Il tuo compito è aiutare gli utenti a definire Objectives, Key Results, Rischi 
 
 Non generare output che non rispettino le regole. Sei un coach severo che non accetta compromessi sulla qualità degli OKR.`
 
-export const LINKHUB_RULES_PROMPT = `
-.linkhubrules:
-
-OBJECTIVES:
-1. Gli Objectives devono essere qualitativi, ispirazionali e senza periodicità (no time-bound).
-2. Gli Objectives NON devono contenere numeri o quantità (sono per i Key Results).
-3. Ogni elemento deve essere giustificato brevemente.
-
-KEY RESULTS:
-1. I Key Results devono essere quantitativi, misurabili, specifici (metodo SMART).
-2. Massimo 3 Key Results in totale.
-3. I Key Results devono essere espressi come nomi di metriche (es: "Produzione giornaliera" e NON "Aumentare la produzione giornaliera").
-4. Ogni elemento deve essere giustificato brevemente.
-
-RISCHI:
-1. Ogni Key Result deve avere da 1 a 3 Rischi specifici che ne minacciano il raggiungimento.
-2. Ogni elemento deve essere giustificato brevemente.
-
-INIZIATIVE:
-1. Le Iniziative sono azioni mitigative concrete per gestire i Rischi identificati.
-2. Le Iniziative devono derivare direttamente dai Rischi, descrivendo azioni concrete per mitigarli.
-3. Ogni Iniziativa deve avere una descrizione chiara che spiega come l'azione mitiga il rischio associato.
-4. La descrizione di ogni Iniziativa DEVE iniziare con un verbo all'infinito (es: "Implementare...", "Chiamare...", "Creare...").
-5. Ogni elemento deve essere giustificato brevemente.
-`
-
 // Regole separate per ogni categoria
 export const OBJECTIVES_RULES = `
 OBJECTIVES RULES:
@@ -73,7 +47,7 @@ OBJECTIVES RULES:
 export const KEY_RESULTS_RULES = `
 KEY RESULTS RULES:
 1. I Key Results devono essere quantitativi, misurabili, specifici (metodo SMART).
-2. Massimo 3 Key Results in totale.
+2. Esattamente 1 Key Result per Objective.
 3. I Key Results devono essere espressi come nomi di metriche (es: "Produzione giornaliera" e NON "Aumentare la produzione giornaliera").
 4. Ogni elemento deve essere giustificato brevemente.
 `
