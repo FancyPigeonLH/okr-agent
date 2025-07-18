@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
 import { Button } from '@/app/components/ui/button'
 import { Checkbox } from '@/app/components/ui/checkbox'
 import { OKRCategory } from '@/app/types/okr'
 
-import { Brain, CheckCircle, XCircle, AlertCircle, ArrowRight, Building2, Users2, User2, ListChecks } from 'lucide-react'
+import { Brain, CheckCircle, XCircle, AlertCircle, ArrowRight, Building2, Users2, User2, ListChecks, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface CategoryDebuggerProps {
@@ -61,6 +61,13 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
   })
   const [isVisible, setIsVisible] = useState(false)
   const [analysisError, setAnalysisError] = useState<string>('')
+  
+  // Nuovi stati per timer e UI
+  const [timeLeft, setTimeLeft] = useState(10)
+  const [isAnalysisCollapsed, setIsAnalysisCollapsed] = useState(true)
+  const [hasConfirmed, setHasConfirmed] = useState(false)
+  const autoConfirmTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     // Mostra il componente con un'animazione
@@ -134,9 +141,68 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
     analyzePrompt()
   }, [userInput])
 
+  // Timer di auto-conferma
+  useEffect(() => {
+    if (!isAnalyzing && !hasConfirmed && selectedCategories.length > 0) {
+      // Reset timer
+      setTimeLeft(10)
+      
+      // Avvia countdown
+      countdownTimerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            // Auto-conferma
+            if (!hasConfirmed) {
+              setHasConfirmed(true)
+              onCategoriesConfirm(selectedCategories)
+            }
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
 
+      // Timer di auto-conferma
+      autoConfirmTimerRef.current = setTimeout(() => {
+        if (!hasConfirmed) {
+          setHasConfirmed(true)
+          onCategoriesConfirm(selectedCategories)
+        }
+      }, 10000)
+
+      return () => {
+        if (countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current)
+        }
+        if (autoConfirmTimerRef.current) {
+          clearTimeout(autoConfirmTimerRef.current)
+        }
+      }
+    }
+  }, [isAnalyzing, hasConfirmed, selectedCategories, onCategoriesConfirm])
+
+  // Cleanup timers
+  useEffect(() => {
+    return () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current)
+      }
+      if (autoConfirmTimerRef.current) {
+        clearTimeout(autoConfirmTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleCategoryToggle = (category: OKRCategory) => {
+    // Reset timer quando l'utente interagisce
+    setTimeLeft(10)
+    if (autoConfirmTimerRef.current) {
+      clearTimeout(autoConfirmTimerRef.current)
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current)
+    }
+    
     setSelectedCategories(prev => 
       prev.includes(category) 
         ? prev.filter(c => c !== category)
@@ -145,14 +211,35 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
   }
 
   const handleConfirm = () => {
-    onCategoriesConfirm(selectedCategories)
+    if (!hasConfirmed) {
+      setHasConfirmed(true)
+      onCategoriesConfirm(selectedCategories)
+    }
   }
 
   const handleSelectAll = () => {
+    // Reset timer quando l'utente interagisce
+    setTimeLeft(10)
+    if (autoConfirmTimerRef.current) {
+      clearTimeout(autoConfirmTimerRef.current)
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current)
+    }
+    
     setSelectedCategories(['objectives', 'key_results', 'risks', 'initiatives'])
   }
 
   const handleSelectNone = () => {
+    // Reset timer quando l'utente interagisce
+    setTimeLeft(10)
+    if (autoConfirmTimerRef.current) {
+      clearTimeout(autoConfirmTimerRef.current)
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current)
+    }
+    
     setSelectedCategories([])
   }
 
@@ -216,6 +303,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
             )}
           </div>
         )}
+        
         {/* Input dell'utente */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="font-medium text-gray-700 mb-2">📝 Il tuo prompt:</h3>
@@ -235,42 +323,57 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
         {/* Risultati dell'analisi */}
         {!isAnalyzing && (
           <>
-            {/* Ragionamento */}
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h3 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
-                <Brain className="h-4 w-4" />
-                Analisi degli elementi della struttura OKR
-              </h3>
-              <div className="space-y-2">
-                {detectedCategories.length > 0 ? (
-                  detectedCategories.map(category => (
-                    <div key={category} className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <span className="font-medium text-blue-800">
-                          {categoryLabels[category].label}:
-                        </span>
-                                                 <span className="text-blue-700 ml-1">
-                           {analysisReasoning[category] || 'Analisi non disponibile'}
-                         </span>
-                        <span className="text-blue-600 ml-2 text-xs">
-                          (Confidenza: {Math.round(confidenceScores[category] * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                  ))
+            {/* Sezione analisi collassabile */}
+            <div className="bg-blue-50 rounded-lg border border-blue-200">
+              <button
+                onClick={() => setIsAnalysisCollapsed(!isAnalysisCollapsed)}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-blue-100 transition-colors"
+              >
+                <h3 className="font-medium text-blue-800 flex items-center gap-2">
+                  <Brain className="h-4 w-4" />
+                  Analisi degli elementi della struttura OKR
+                </h3>
+                {isAnalysisCollapsed ? (
+                  <ChevronDown className="h-4 w-4 text-blue-600" />
                 ) : (
-                  <div className="text-blue-700">
-                    🔍 Nessuna categoria rilevata dall'analisi AI
-                  </div>
+                  <ChevronUp className="h-4 w-4 text-blue-600" />
                 )}
-                {analysisError && (
-                  <div className="flex items-center gap-2 text-orange-700 bg-orange-50 p-2 rounded">
-                    <AlertCircle className="h-4 w-4" />
-                    <span className="text-sm">{analysisError}</span>
+              </button>
+              
+              {!isAnalysisCollapsed && (
+                <div className="px-4 pb-4 text-sm">
+                  <div className="space-y-2">
+                    {detectedCategories.length > 0 ? (
+                      detectedCategories.map(category => (
+                        <div key={category} className="flex items-start gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <span className="font-medium text-blue-800">
+                              {categoryLabels[category].label}:
+                            </span>
+                            <span className="text-blue-700 ml-1">
+                              {analysisReasoning[category] || 'Analisi non disponibile'}
+                            </span>
+                            <span className="text-blue-600 ml-2 text-xs">
+                              (Confidenza: {Math.round(confidenceScores[category] * 100)}%)
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-blue-700">
+                        🔍 Nessuna categoria rilevata dall'analisi AI
+                      </div>
+                    )}
+                    {analysisError && (
+                      <div className="flex items-center gap-2 text-orange-700 bg-orange-50 p-2 rounded">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-sm">{analysisError}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Categorie rilevate */}
@@ -366,20 +469,17 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
               </Button>
             </div>
 
-            {/* Contatore */}
-            <div className="text-center">
-              <span className={cn(
-                'px-3 py-1 rounded-full text-sm font-medium',
-                selectedCategories.length === 0 
-                  ? 'bg-red-100 text-red-700' 
-                  : 'bg-green-100 text-green-700'
-              )}>
-                {selectedCategories.length === 0 
-                  ? '⚠️ Nessun elemento selezionato' 
-                  : `✅ ${selectedCategories.length} elementi selezionati`
-                }
-              </span>
-            </div>
+            {/* Timer di auto-conferma */}
+            {!hasConfirmed && selectedCategories.length > 0 && timeLeft > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center justify-center gap-2 text-blue-700 font-medium">
+                  <Clock className="h-5 w-5" />
+                  <span>
+                    Auto-conferma in {timeLeft} secondi
+                  </span>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -389,12 +489,13 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
             variant="outline"
             onClick={onCancel}
             className="flex-1"
+            disabled={hasConfirmed}
           >
             Annulla
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={selectedCategories.length === 0}
+            disabled={selectedCategories.length === 0 || hasConfirmed}
             className="flex-1 bg-[#3a88ff] hover:bg-[#3a88ff]/90"
           >
             <ArrowRight className="h-4 w-4 mr-2" />
