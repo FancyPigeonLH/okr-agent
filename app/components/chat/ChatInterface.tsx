@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/app/components/ui/button'
-import { Send, Loader2, Settings2, MessageSquare, X } from 'lucide-react'
+import { Send, Loader2, Settings2, MessageSquare, X, AlertCircle } from 'lucide-react'
 import { useOKRStore, useOKRActions } from '@/app/lib/store/okr-store'
 import { OkrMessage } from './OkrMessage'
 import { CompanyContext } from './CompanyContext'
@@ -24,6 +24,30 @@ export function ChatInterface() {
   const [isFirstInteraction, setIsFirstInteraction] = useState(true)
   const { messages, currentOKR, isLoading, context, setContext } = useOKRStore() as { messages: ChatMessage[], currentOKR: any, isLoading: boolean, context: any, setContext: any }
   const { generateOKR, iterateOKR } = useOKRActions()
+  
+  // Ref per l'area messaggi e per il debugger
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const categoryDebuggerRef = useRef<HTMLDivElement>(null)
+
+  // Scroll automatico quando il CategoryDebugger viene mostrato
+  useEffect(() => {
+    if (showCategoryDebugger && categoryDebuggerRef.current) {
+      // Piccolo delay per assicurarsi che il DOM sia aggiornato
+      setTimeout(() => {
+        categoryDebuggerRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }, 100)
+    }
+  }, [showCategoryDebugger])
+
+  // Scroll automatico quando arrivano nuovi messaggi
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+    }
+  }, [messages, isLoading])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -218,10 +242,17 @@ export function ChatInterface() {
         </div>
 
         {/* Area messaggi */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Debugger categorie SOLO se PRIMA richiesta */}
           {showCategoryDebugger && isFirstInteraction && (
-            <div className="flex justify-center py-4">
+            <div ref={categoryDebuggerRef} className="flex flex-col items-center py-4 space-y-3">
+              {/* Indicatore di attenzione */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg animate-pulse">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-medium text-amber-800">
+                  Seleziona gli elementi OKR da generare
+                </span>
+              </div>
               <CategoryDebugger
                 userInput={pendingUserInput}
                 onCategoriesConfirm={handleCategoriesConfirm}
@@ -274,7 +305,14 @@ export function ChatInterface() {
                   </div>
                   {/* Mostra il CategoryDebugger DOPO l'ultimo messaggio utente se attivo e NON è la prima richiesta */}
                   {showCategoryDebugger && !isFirstInteraction && isLastUserMsg && messages.length > 0 && (
-                    <div className="flex justify-center py-4">
+                    <div ref={categoryDebuggerRef} className="flex flex-col items-center py-4 space-y-3">
+                      {/* Indicatore di attenzione */}
+                      <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg animate-pulse">
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        <span className="text-sm font-medium text-amber-800">
+                          Seleziona gli elementi OKR da modificare
+                        </span>
+                      </div>
                       <CategoryDebugger
                         userInput={pendingUserInput}
                         onCategoriesConfirm={handleCategoriesConfirm}

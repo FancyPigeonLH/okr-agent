@@ -48,6 +48,13 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
   const [selectedCategories, setSelectedCategories] = useState<OKRCategory[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(true)
   const [analysisReasoning, setAnalysisReasoning] = useState<string>('')
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    // Mostra il componente con un'animazione
+    const timer = setTimeout(() => setIsVisible(true), 50)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     // Simula l'analisi del prompt
@@ -142,7 +149,12 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto border-2 border-[#3a88ff]/20 shadow-lg">
+    <Card className={cn(
+      "w-full max-w-2xl mx-auto border-2 border-[#3a88ff]/20 shadow-lg transition-all duration-500 ease-out",
+      isVisible 
+        ? "opacity-100 translate-y-0" 
+        : "opacity-0 translate-y-4"
+    )}>
       <CardHeader className="bg-gradient-to-r from-[#3a88ff]/5 to-[#3a88ff]/10">
         <CardTitle className="flex items-center gap-2 text-[#3a88ff]">
           <Brain className="h-5 w-5" />
