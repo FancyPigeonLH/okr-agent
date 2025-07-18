@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Button } from '@/app/components/ui/button'
 import { Checkbox } from '@/app/components/ui/checkbox'
 import { OKRCategory } from '@/app/types/okr'
-import { detectOKRCategories } from '@/lib/utils'
+
 import { Brain, CheckCircle, XCircle, AlertCircle, ArrowRight, Building2, Users2, User2, ListChecks } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -47,8 +47,20 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
   const [detectedCategories, setDetectedCategories] = useState<OKRCategory[]>([])
   const [selectedCategories, setSelectedCategories] = useState<OKRCategory[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(true)
-  const [analysisReasoning, setAnalysisReasoning] = useState<string>('')
+  const [analysisReasoning, setAnalysisReasoning] = useState<Record<OKRCategory, string>>({
+    objectives: '',
+    key_results: '',
+    risks: '',
+    initiatives: ''
+  })
+  const [confidenceScores, setConfidenceScores] = useState<Record<OKRCategory, number>>({
+    objectives: 0,
+    key_results: 0,
+    risks: 0,
+    initiatives: 0
+  })
   const [isVisible, setIsVisible] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string>('')
 
   useEffect(() => {
     // Mostra il componente con un'animazione
@@ -57,76 +69,72 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
   }, [])
 
   useEffect(() => {
-    // Simula l'analisi del prompt
+    // Analizza il prompt con Gemini
     const analyzePrompt = async () => {
       setIsAnalyzing(true)
+      setAnalysisError('')
       
-      // Simula un delay per mostrare l'analisi in corso
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // Analizza il prompt
-      const detected = detectOKRCategories(userInput, false)
-      setDetectedCategories(detected)
-      
-      // Genera il ragionamento
-      const reasoning = generateReasoning(userInput, detected)
-      setAnalysisReasoning(reasoning)
-      
-      // Pre-seleziona le categorie rilevate
-      setSelectedCategories(detected)
-      
-      setIsAnalyzing(false)
+      try {
+        // Chiama l'API route per l'analisi
+        const response = await fetch('/api/okr/analyze-categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userInput })
+        })
+
+        if (!response.ok) {
+          throw new Error(`Errore API: ${response.status}`)
+        }
+
+        const analysis = await response.json()
+        
+        setDetectedCategories(analysis.categories)
+        setAnalysisReasoning(analysis.reasoning)
+        setConfidenceScores(analysis.confidence)
+        
+        // Pre-seleziona solo le categorie con confidenza >= 90%
+        const highConfidenceCategories = analysis.categories.filter(
+          (category: OKRCategory) => analysis.confidence[category] >= 0.9
+        )
+        setSelectedCategories(highConfidenceCategories)
+        
+      } catch (error) {
+        console.error('Errore nell\'analisi AI:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto'
+        
+        if (errorMessage.includes('API key') || errorMessage.includes('non disponibile')) {
+          setAnalysisError('API key Gemini non configurata. Utilizzo analisi di fallback.')
+        } else {
+          setAnalysisError('Errore nell\'analisi AI. Utilizzo fallback.')
+        }
+        
+        // Fallback: usa tutte le categorie
+        const allCategories: OKRCategory[] = ['objectives', 'key_results', 'risks', 'initiatives']
+        setDetectedCategories(allCategories)
+        setSelectedCategories(allCategories)
+        setAnalysisReasoning({
+          objectives: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
+          key_results: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
+          risks: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
+          initiatives: 'Analisi AI non disponibile - categoria inclusa per sicurezza'
+        })
+        setConfidenceScores({
+          objectives: 0.5,
+          key_results: 0.5,
+          risks: 0.5,
+          initiatives: 0.5
+        })
+      } finally {
+        setIsAnalyzing(false)
+      }
     }
 
     analyzePrompt()
   }, [userInput])
 
-  const generateReasoning = (input: string, categories: OKRCategory[]): string => {
-    const lowerInput = input.toLowerCase()
-    const reasons: string[] = []
 
-    if (categories.includes('objectives')) {
-      if (/(obiettivo|obiettivi|objective|objectives|raggiungere)/.test(lowerInput)) {
-        reasons.push('✅ Rilevato riferimento a "obiettivi"/"objectives" (singolare/plurale) o "raggiungere"')
-      }
-      if (/(qualitativo|qualitativi|qualitative)/.test(lowerInput)) {
-        reasons.push('✅ Rilevato riferimento a risultati "qualitativi"')
-      }
-    }
-
-    if (categories.includes('key_results')) {
-      if (/(key result|key results|keyresult|keyresults|kpi|metric[ahie]?|misura|misure)/.test(lowerInput)) {
-        reasons.push('✅ Rilevato riferimento a "key result(s)", "KPI", "metriche", "misure"')
-      }
-      if (/(quantitativo|quantitativi|quantitative|%)/.test(lowerInput)) {
-        reasons.push('✅ Rilevato riferimento a risultati "quantitativi" o percentuali')
-      }
-    }
-
-    if (categories.includes('risks')) {
-      if (/(rischio|rischi|risk|risks|ostacolo|ostacoli)/.test(lowerInput)) {
-        reasons.push('✅ Rilevato riferimento a "rischi"/"risks" (singolare/plurale) o "ostacoli"')
-      }
-      if (/(problema|problemi|minaccia|minacce|difficoltà|difficolta)/.test(lowerInput)) {
-        reasons.push('✅ Rilevato riferimento a "problemi", "minacce" o "difficoltà"')
-      }
-    }
-
-    if (categories.includes('initiatives')) {
-      if (/(iniziativa|iniziative|azione|azioni|progetto|progetti|initiative|initiatives)/.test(lowerInput)) {
-        reasons.push('✅ Rilevato riferimento a "iniziative", "azioni", "progetti"')
-      }
-      if (/(fare|implementare|eseguire)/.test(lowerInput)) {
-        reasons.push('✅ Rilevato riferimento ad azioni concrete')
-      }
-    }
-
-    if (reasons.length === 0) {
-      reasons.push('🔍 Nessuna parola chiave specifica rilevata, ma il contesto suggerisce la necessità di categorie complete')
-    }
-
-    return reasons.join('\n')
-  }
 
   const handleCategoryToggle = (category: OKRCategory) => {
     setSelectedCategories(prev => 
@@ -211,7 +219,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
         {/* Input dell'utente */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="font-medium text-gray-700 mb-2">📝 Il tuo prompt:</h3>
-          <p className="text-gray-900 italic">"{userInput}"</p>
+          <p className="text-gray-900 italic">&ldquo;{userInput}&rdquo;</p>
         </div>
 
         {/* Analisi in corso */}
@@ -219,7 +227,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
           <div className="flex items-center justify-center py-8">
             <div className="flex items-center gap-3">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3a88ff]"></div>
-              <span className="text-[#3a88ff] font-medium">Analizzando il prompt...</span>
+              <span className="text-[#3a88ff] font-medium">Analisi del prompt tramite AI</span>
             </div>
           </div>
         )}
@@ -233,9 +241,36 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
                 <Brain className="h-4 w-4" />
                 Analisi degli elementi della struttura OKR
               </h3>
-              <pre className="text-sm text-blue-700 whitespace-pre-wrap font-mono">
-                {analysisReasoning}
-              </pre>
+              <div className="space-y-2">
+                {detectedCategories.length > 0 ? (
+                  detectedCategories.map(category => (
+                    <div key={category} className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <span className="font-medium text-blue-800">
+                          {categoryLabels[category].label}:
+                        </span>
+                                                 <span className="text-blue-700 ml-1">
+                           {analysisReasoning[category] || 'Analisi non disponibile'}
+                         </span>
+                        <span className="text-blue-600 ml-2 text-xs">
+                          (Confidenza: {Math.round(confidenceScores[category] * 100)}%)
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-blue-700">
+                    🔍 Nessuna categoria rilevata dall'analisi AI
+                  </div>
+                )}
+                {analysisError && (
+                  <div className="flex items-center gap-2 text-orange-700 bg-orange-50 p-2 rounded">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="text-sm">{analysisError}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Categorie rilevate */}
@@ -244,6 +279,16 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 Elementi OKR rilevati
               </h3>
+              <div className="mb-3 text-xs text-gray-600 flex items-center gap-4">
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-green-600" />
+                  Pre-selezionato (confidenza ≥90%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-blue-500" />
+                  Rilevato ma non selezionato (confidenza &lt;90%)
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 {(Object.keys(categoryLabels) as OKRCategory[]).map((category) => {
                   const isDetected = detectedCategories.includes(category)
@@ -271,11 +316,30 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
                           {categoryLabels[category].label}
                         </span>
                         {isDetected ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          confidenceScores[category] >= 0.9 ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 text-blue-500" />
+                          )
                         ) : (
                           <XCircle className="h-4 w-4 text-gray-400" />
                         )}
                       </div>
+                      {isDetected && (
+                        <div className="mt-1">
+                          <div className="flex items-center gap-1">
+                            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                              <div 
+                                className="bg-green-500 h-1.5 rounded-full transition-all"
+                                style={{ width: `${Math.round(confidenceScores[category] * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-600">
+                              {Math.round(confidenceScores[category] * 100)}%
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}

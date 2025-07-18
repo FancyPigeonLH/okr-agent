@@ -221,4 +221,48 @@ ${generateYamlStructure(requestedCategories)}
 
 Modifica gli OKR esistenti secondo la richiesta dell'utente, mantenendo il rispetto delle regole specificate e la struttura YAML esatta.
 NON omettere MAI nessuna sezione o campo delle categorie richieste.`
+}
+
+export function generateCategoryAnalysisPrompt(userInput: string) {
+  return `Sei un analizzatore esperto di framework OKR. Il tuo compito è analizzare il prompt dell'utente e determinare quali elementi della struttura OKR sono rilevanti per la richiesta.
+
+CATEGORIE OKR DISPONIBILI:
+1. OBJECTIVES: Obiettivi qualitativi, ispirazionali e senza periodicità
+2. KEY RESULTS: Metriche quantitative e misurabili per valutare il successo
+3. RISKS: Potenziali ostacoli e minacce che potrebbero impedire il raggiungimento dei Key Results
+4. INITIATIVES: Azioni concrete e mitigative per gestire i rischi identificati
+
+ANALIZZA IL SEGUENTE PROMPT DELL'UTENTE:
+"${userInput}"
+
+ISTRUZIONI:
+1. Analizza il contenuto semantico del prompt, non solo le parole chiave
+2. Considera il contesto e l'intento dell'utente
+3. Determina quali categorie OKR sono rilevanti per soddisfare la richiesta
+4. Fornisci una spiegazione breve per ogni categoria selezionata
+
+RISPOSTA RICHIESTA:
+Rispondi SOLO con un JSON nel seguente formato:
+
+{
+  "categories": ["objectives", "key_results", "risks", "initiatives"],
+  "reasoning": {
+    "objectives": "Spiegazione breve del perché sono rilevanti",
+    "key_results": "Spiegazione breve del perché sono rilevanti", 
+    "risks": "Spiegazione breve del perché sono rilevanti",
+    "initiatives": "Spiegazione breve del perché sono rilevanti"
+  },
+  "confidence": {
+    "objectives": 0.9,
+    "key_results": 0.8,
+    "risks": 0.7,
+    "initiatives": 0.6
+  }
+}
+
+NOTA: 
+- Includi solo le categorie che ritieni rilevanti (array vuoto se nessuna)
+- I valori di confidence vanno da 0.0 a 1.0
+- Se una categoria non è rilevante, non includerla nel JSON
+- La spiegazione deve essere concisa ma chiara`
 } 

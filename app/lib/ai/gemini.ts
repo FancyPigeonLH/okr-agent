@@ -1,25 +1,32 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { generateInitialPrompt, generateCorrectionPrompt, generateIterationPrompt } from './prompts'
+import { generateInitialPrompt, generateCorrectionPrompt, generateIterationPrompt, generateCategoryAnalysisPrompt } from './prompts'
 import { OKRSet, ValidationResult, OKRCategory, GenerationContext, PartialOKRSet } from '@/app/types/okr'
 import { validateOKRSet } from '@/app/lib/validation/okr-rules'
 import yaml from 'js-yaml'
 
-// Verifica la presenza della API key
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error('GEMINI_API_KEY non trovata nel file .env. Assicurati di averla configurata correttamente.')
+// Inizializza Gemini solo se siamo lato server
+let genAI: GoogleGenerativeAI | null = null
+
+if (typeof window === 'undefined') {
+  // Siamo lato server
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY non trovata nel file .env. Assicurati di averla configurata correttamente.')
+  }
+  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 }
 
-// Inizializza Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-
 export class OKRGenerator {
-  private model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  private model = genAI?.getGenerativeModel({ model: 'gemini-1.5-flash' }) || null
   private maxIterations = 3
 
   async generateOKR(
     userRequest: string,
     context: GenerationContext
   ): Promise<{ okrSet: PartialOKRSet; iterations: number; validationResult: ValidationResult }> {
+    if (!this.model) {
+      throw new Error('Modello AI non disponibile - verifica la configurazione della API key')
+    }
+    
     // DEBUG: Verifica cosa riceve il generatore AI
     console.log('🤖 DEBUG GENERATORE AI:')
     console.log('📝 Richiesta utente:', userRequest)
@@ -90,6 +97,10 @@ export class OKRGenerator {
     userRequest: string,
     categories?: OKRCategory[]
   ): Promise<{ okrSet: PartialOKRSet; validationResult: ValidationResult }> {
+    if (!this.model) {
+      throw new Error('Modello AI non disponibile - verifica la configurazione della API key')
+    }
+    
     const prompt = generateIterationPrompt(this.convertOKRSetToYAML(currentOKR), userRequest, categories)
     
     let output: string = ''
@@ -155,6 +166,67 @@ export class OKRGenerator {
       }
       
       throw new Error(`Errore nell'iterazione: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`)
+    }
+  }
+
+  async analyzeCategories(userInput: string): Promise<{
+    categories: OKRCategory[]
+    reasoning: Record<OKRCategory, string>
+    confidence: Record<OKRCategory, number>
+  }> {
+    if (!this.model) {
+      throw new Error('Modello AI non disponibile - verifica la configurazione della API key')
+    }
+    
+    try {
+      const prompt = generateCategoryAnalysisPrompt(userInput)
+      const result = await this.model.generateContent(prompt)
+      const response = await result.response
+      const output = response.text()
+
+      // Estrai JSON dall'output
+      const jsonMatch = output.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        throw new Error('Output non contiene JSON valido')
+      }
+
+      const analysis = JSON.parse(jsonMatch[0])
+      
+      // Valida e normalizza la risposta
+      const categories = Array.isArray(analysis.categories) 
+        ? analysis.categories.filter((cat: string) => 
+            ['objectives', 'key_results', 'risks', 'initiatives'].includes(cat)
+          ) as OKRCategory[]
+        : []
+
+      const reasoning = analysis.reasoning || {}
+      const confidence = analysis.confidence || {}
+
+      return {
+        categories,
+        reasoning,
+        confidence
+      }
+
+    } catch (error) {
+      console.error('Errore nell\'analisi delle categorie:', error)
+      
+      // Fallback: ritorna tutte le categorie se l'analisi fallisce
+      return {
+        categories: ['objectives', 'key_results', 'risks', 'initiatives'],
+        reasoning: {
+          objectives: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
+          key_results: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
+          risks: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
+          initiatives: 'Analisi AI non disponibile - categoria inclusa per sicurezza'
+        },
+        confidence: {
+          objectives: 0.5,
+          key_results: 0.5,
+          risks: 0.5,
+          initiatives: 0.5
+        }
+      }
     }
   }
 

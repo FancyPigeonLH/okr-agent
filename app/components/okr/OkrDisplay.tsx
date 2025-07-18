@@ -48,7 +48,9 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
       {/* Header */}
       <div className="border-b pb-4">
         <h2 className="text-2xl font-bold">OKR - {okrSet.team}</h2>
-        <p className="text-muted-foreground">Periodo: {okrSet.period}</p>
+        <p className="text-muted-foreground">
+          Creato il: {okrSet.createdAt.toLocaleDateString('it-IT')}
+        </p>
       </div>
 
       {/* Objectives */}

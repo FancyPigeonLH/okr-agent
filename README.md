@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OKR Agent - Coach AI per OKR
 
-## Getting Started
+Un coach AI intelligente che aiuta a definire Objectives, Key Results, Rischi e Iniziative seguendo il framework OKR.
 
-First, run the development server:
+## 🚀 Getting Started
 
+### Prerequisiti
+
+- Node.js 18+ 
+- npm, yarn, pnpm o bun
+
+### Installazione
+
+1. **Clona il repository**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd okr-agent
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Installa le dipendenze**
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Configura l'API Key Gemini**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Crea un file `.env` nella root del progetto:
 
-## Learn More
+```bash
+# Gemini API Key
+# Ottieni la tua API key da: https://makersuite.google.com/app/apikey
+GEMINI_API_KEY=your_gemini_api_key_here
+```
 
-To learn more about Next.js, take a look at the following resources:
+**Come ottenere l'API Key Gemini:**
+1. Vai su [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Accedi con il tuo account Google
+3. Clicca su "Create API Key"
+4. Copia la chiave e incollala nel file `.env`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. **Avvia il server di sviluppo**
+```bash
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+5. **Apri il browser**
+Vai su [http://localhost:3000](http://localhost:3000)
 
-## Deploy on Vercel
+## 🎯 Funzionalità
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Analisi Intelligente dei Prompt
+- **AI-Powered**: Utilizza Gemini per analizzare semanticamente le richieste dell'utente
+- **Categorie Automatiche**: Rileva automaticamente quali elementi OKR sono rilevanti
+- **Livelli di Confidenza**: Mostra quanto l'AI è sicura della sua analisi
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Generazione OKR
+- **Objectives**: Obiettivi qualitativi e ispirazionali
+- **Key Results**: Metriche quantitative e misurabili
+- **Rischi**: Identificazione di potenziali ostacoli
+- **Iniziative**: Azioni concrete per mitigare i rischi
+
+### Contesto Dinamico
+- **Company Context**: Seleziona l'azienda di riferimento
+- **Team Context**: Specifica il team coinvolto
+- **User Context**: Personalizza per utenti specifici
+
+## 🛠️ Tecnologie
+
+- **Frontend**: Next.js 15, React 18, TypeScript
+- **UI**: Tailwind CSS, Shadcn UI, Radix UI
+- **AI**: Google Gemini 1.5 Flash
+- **State Management**: Zustand
+- **Styling**: Stylus (CSS Modules)
+
+## 📁 Struttura del Progetto
+
+```
+okr-agent/
+├── app/
+│   ├── components/
+│   │   ├── chat/          # Interfaccia chat e debugger
+│   │   ├── okr/           # Visualizzazione OKR
+│   │   └── ui/            # Componenti UI base
+│   ├── lib/
+│   │   ├── ai/            # Integrazione Gemini
+│   │   ├── store/         # State management
+│   │   └── validation/    # Regole di validazione
+│   └── types/             # Definizioni TypeScript
+├── prisma/                # Schema database
+└── public/                # Asset statici
+```
+
+## 🔧 Sviluppo
+
+### Script Disponibili
+
+```bash
+npm run dev          # Server di sviluppo
+npm run build        # Build di produzione
+npm run start        # Avvia server di produzione
+npm run lint         # Controllo linting
+```
+
+### Configurazione
+
+Il progetto utilizza:
+- **ESLint** per il linting del codice
+- **Prettier** per la formattazione
+- **TypeScript** per il type checking
+
+## 🚨 Risoluzione Problemi
+
+### Errore API Key
+Se vedi l'errore "GEMINI_API_KEY non trovata":
+1. Verifica che il file `.env` esista nella root
+2. Controlla che la chiave sia corretta
+3. Riavvia il server di sviluppo
+
+### Fallback Mode
+Se l'AI non è disponibile, l'app utilizza automaticamente un'analisi di fallback che include tutte le categorie OKR.
+
+## 📝 Licenza
+
+MIT License

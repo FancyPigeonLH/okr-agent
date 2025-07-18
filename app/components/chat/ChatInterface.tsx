@@ -8,9 +8,7 @@ import { OkrMessage } from './OkrMessage'
 import { CompanyContext } from './CompanyContext'
 import { TeamContext } from './TeamContext'
 import { UserContext } from './UserContext'
-import { CategorySelector } from './CategorySelector'
 import { CategoryDebugger } from './CategoryDebugger'
-import { detectOKRCategories } from '@/lib/utils'
 import { OKRCategory } from '@/app/types/okr'
 import React from 'react'
 
@@ -18,7 +16,7 @@ export function ChatInterface() {
   type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; okr?: any }
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
-  const [selectedCategories, setSelectedCategories] = useState<OKRCategory[]>([])
+
   const [showCategoryDebugger, setShowCategoryDebugger] = useState(false)
   const [pendingUserInput, setPendingUserInput] = useState('')
   const [isFirstInteraction, setIsFirstInteraction] = useState(true)
@@ -70,7 +68,6 @@ export function ChatInterface() {
   }
 
   const handleCategoriesConfirm = async (categories: OKRCategory[]) => {
-    setSelectedCategories(categories)
     setShowCategoryDebugger(false)
     setIsFirstInteraction(false)
     
