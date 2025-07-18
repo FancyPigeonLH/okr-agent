@@ -113,6 +113,32 @@ export function OkrDisplay({ okrSet }: OkrDisplayProps) {
         ))}
       </div>
 
+      {/* KPIs */}
+      <div className="space-y-4">
+        <h3 className="text-xl font-semibold text-orange-600">KPI</h3>
+        {okrSet.risks.map((risk) => {
+          const riskKPIs = okrSet.kpis.filter(kpi => kpi.riskId === risk.id)
+          return (
+            <div key={risk.id} className="space-y-3">
+              <h4 className="font-medium text-gray-700">{risk.title}</h4>
+              {riskKPIs.map((kpi) => (
+                <div key={kpi.id} className="bg-orange-50 border border-orange-200 rounded-lg p-4 ml-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h5 className="font-medium text-orange-900">{kpi.title}</h5>
+                      <div className="flex gap-4 mt-2 text-sm text-orange-700">
+                        <span>Unità: {kpi.unit}</span>
+                      </div>
+                    </div>
+                    <CopyButton text={kpi.title} itemId={kpi.id} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+
       {/* Initiatives */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold text-purple-600">Iniziative</h3>

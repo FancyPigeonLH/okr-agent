@@ -72,7 +72,7 @@ export const useOKRActions = () => {
     set({ isLoading: true, error: null })
 
     // DEBUG: Verifica cosa viene inviato all'API
-    const finalCategories = categories || ['objectives', 'key_results', 'risks', 'initiatives']
+    const finalCategories = categories || ['objectives', 'key_results', 'risks', 'kpis', 'initiatives']
     console.log('🚀 DEBUG API GENERATE:')
     console.log('📝 Input:', input)
     console.log('🎯 Categorie ricevute:', categories)
@@ -144,7 +144,7 @@ export const useOKRActions = () => {
           input,
           context: store.context,
           currentOKR: store.currentOKR,
-          categories: categories || ['objectives', 'key_results', 'risks', 'initiatives']
+          categories: categories || ['objectives', 'key_results', 'risks', 'kpis', 'initiatives']
         }),
       })
 

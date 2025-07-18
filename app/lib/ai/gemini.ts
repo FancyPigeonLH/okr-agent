@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { generateInitialPrompt, generateCorrectionPrompt, generateIterationPrompt, generateCategoryAnalysisPrompt } from './prompts'
-import { OKRSet, ValidationResult, OKRCategory, GenerationContext, PartialOKRSet } from '@/app/types/okr'
+import { OKRSet, ValidationResult, OKRCategory, GenerationContext, PartialOKRSet, KPI } from '@/app/types/okr'
 import { validateOKRSet } from '@/app/lib/validation/okr-rules'
 import yaml from 'js-yaml'
 
@@ -213,17 +213,19 @@ export class OKRGenerator {
       
       // Fallback: ritorna tutte le categorie se l'analisi fallisce
       return {
-        categories: ['objectives', 'key_results', 'risks', 'initiatives'],
+        categories: ['objectives', 'key_results', 'risks', 'kpis', 'initiatives'],
         reasoning: {
           objectives: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
           key_results: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
           risks: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
+          kpis: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
           initiatives: 'Analisi AI non disponibile - categoria inclusa per sicurezza'
         },
         confidence: {
           objectives: 0.5,
           key_results: 0.5,
           risks: 0.5,
+          kpis: 0.5,
           initiatives: 0.5
         }
       }
@@ -231,7 +233,7 @@ export class OKRGenerator {
   }
 
   private parseYAMLToPartialOKRSet(data: unknown, context: GenerationContext): PartialOKRSet {
-    const requestedCategories = context.categories || ['objectives', 'key_results', 'risks', 'initiatives']
+    const requestedCategories = context.categories || ['objectives', 'key_results', 'risks', 'kpis', 'initiatives']
     const partialOKRSet: PartialOKRSet = {}
     
     // Normalizza i dati in ingresso con controlli di tipo più sicuri
@@ -240,6 +242,7 @@ export class OKRGenerator {
       objectives: Array.isArray(dataObj?.objectives) ? dataObj.objectives as Record<string, unknown>[] : [],
       key_results: Array.isArray(dataObj?.key_results) ? dataObj.key_results as Record<string, unknown>[] : [],
       risks: Array.isArray(dataObj?.risks) ? dataObj.risks as Record<string, unknown>[] : [],
+      kpis: Array.isArray(dataObj?.kpis) ? dataObj.kpis as Record<string, unknown>[] : [],
       initiatives: Array.isArray(dataObj?.initiatives) ? dataObj.initiatives as Record<string, unknown>[] : []
     }
     
@@ -305,6 +308,23 @@ export class OKRGenerator {
       }))
     }
 
+    if (requestedCategories.includes('kpis')) {
+      // I KPI sono opzionali, quindi non lanciamo errore se non ci sono
+      if (normalizedData.kpis.length > 0) {
+        normalizedData.kpis.forEach((kpi: Record<string, unknown>) => {
+          validateFields(kpi, ['id', 'risk_id', 'title', 'unit'], 'kpi')
+        })
+        partialOKRSet.kpis = normalizedData.kpis.map((kpi: Record<string, unknown>) => ({
+          id: kpi.id as string,
+          riskId: kpi.risk_id as string,
+          title: kpi.title as string,
+          unit: kpi.unit as string,
+          isAlert: true,
+          isQuantitative: true
+        }))
+      }
+    }
+
     if (requestedCategories.includes('initiatives')) {
       if (normalizedData.initiatives.length === 0) {
         throw new Error('YAML non valido: mancano initiatives richieste')
@@ -326,7 +346,7 @@ export class OKRGenerator {
     return partialOKRSet
   }
 
-  private validateRelationships(data: { objectives: Record<string, unknown>[]; key_results: Record<string, unknown>[]; risks: Record<string, unknown>[]; initiatives: Record<string, unknown>[] }, categories: OKRCategory[]) {
+  private validateRelationships(data: { objectives: Record<string, unknown>[]; key_results: Record<string, unknown>[]; risks: Record<string, unknown>[]; kpis: Record<string, unknown>[]; initiatives: Record<string, unknown>[] }, categories: OKRCategory[]) {
     // Verifica relazioni solo se sono presenti entrambe le categorie correlate
     if (categories.includes('key_results') && categories.includes('objectives')) {
       const objectiveIds = new Set(data.objectives.map((obj: Record<string, unknown>) => obj.id as string))
@@ -342,6 +362,15 @@ export class OKRGenerator {
       data.risks.forEach((risk: Record<string, unknown>) => {
         if (!keyResultIds.has(risk.key_result_id as string)) {
           throw new Error(`Risk ${risk.id as string} fa riferimento a un Key Result inesistente: ${risk.key_result_id as string}`)
+        }
+      })
+    }
+
+    if (categories.includes('kpis') && categories.includes('risks')) {
+      const riskIds = new Set(data.risks.map((risk: Record<string, unknown>) => risk.id as string))
+      data.kpis.forEach((kpi: Record<string, unknown>) => {
+        if (!riskIds.has(kpi.risk_id as string)) {
+          throw new Error(`KPI ${kpi.id as string} fa riferimento a un Risk inesistente: ${kpi.risk_id as string}`)
         }
       })
     }
@@ -365,6 +394,7 @@ export class OKRGenerator {
       objectives: partialOKRSet.objectives || [],
       keyResults: partialOKRSet.keyResults || [],
       risks: partialOKRSet.risks || [],
+      kpis: partialOKRSet.kpis || [],
       initiatives: partialOKRSet.initiatives || [],
       createdAt: now,
       updatedAt: now
@@ -390,6 +420,12 @@ export class OKRGenerator {
         title: risk.title,
         description: risk.description,
         is_external: risk.isExternal
+      })),
+      kpis: (okrSet.kpis || []).map(kpi => ({
+        id: kpi.id,
+        risk_id: kpi.riskId,
+        title: kpi.title,
+        unit: kpi.unit
       })),
       initiatives: (okrSet.initiatives || []).map(init => ({
         id: init.id,

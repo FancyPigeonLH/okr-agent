@@ -67,12 +67,23 @@ INITIATIVES RULES:
 5. Ogni elemento deve essere giustificato brevemente.
 `
 
+export const KPIS_RULES = `
+KPIS RULES:
+1. I KPI sono indicatori di soglia di allerta per i Rischi.
+2. Ogni KPI deve essere associato a un Rischio specifico.
+3. I KPI devono essere quantitativi con un'unità di misura.
+4. Il formato deve essere: "Unità di misura" (es: "€", "%", "ms", "giorni").
+5. I KPI sono opzionali: non tutti i rischi devono averne uno.
+6. Ogni elemento deve essere giustificato brevemente.
+`
+
 // Helper per selezionare le regole in base alle categorie richieste
 export function getRulesForCategories(categories: OKRCategory[]) {
   const rulesMap: Record<OKRCategory, string> = {
     objectives: OBJECTIVES_RULES,
     key_results: KEY_RESULTS_RULES,
     risks: RISKS_RULES,
+    kpis: KPIS_RULES,
     initiatives: INITIATIVES_RULES
   }
   
@@ -142,6 +153,14 @@ function generateYamlStructure(categories: OKRCategory[]) {
     title: "Titolo del Rischio"
     description: "Descrizione del rischio"
     is_external: false`)
+  }
+
+  if (categories.includes('kpis')) {
+    structure.push(`kpis:
+  - id: "kpi_1"
+    risk_id: "risk_1"
+    title: "Titolo del KPI"
+    unit: "€"`)
   }
 
   if (categories.includes('initiatives')) {
@@ -230,7 +249,8 @@ CATEGORIE OKR DISPONIBILI:
 1. OBJECTIVES: Obiettivi qualitativi, ispirazionali e senza periodicità
 2. KEY RESULTS: Metriche quantitative e misurabili per valutare il successo
 3. RISKS: Potenziali ostacoli e minacce che potrebbero impedire il raggiungimento dei Key Results
-4. INITIATIVES: Azioni concrete e mitigative per gestire i rischi identificati
+4. KPIS: Indicatori di soglia di allerta per i rischi (es: "Costi mensili > 10.000€", "Tempo di risposta > 500ms")
+5. INITIATIVES: Azioni concrete e mitigative per gestire i rischi identificati
 
 ANALIZZA IL SEGUENTE PROMPT DELL'UTENTE:
 "${userInput}"
@@ -240,23 +260,27 @@ ISTRUZIONI:
 2. Considera il contesto e l'intento dell'utente
 3. Determina quali categorie OKR sono rilevanti per soddisfare la richiesta
 4. Fornisci una spiegazione breve per ogni categoria selezionata
+5. I KPI sono opzionali ma utili per la gestione proattiva dei rischi
+6. ATTENZIONE: Se l'utente chiede esplicitamente di "suggerire un KPI", "misurare un rischio", "indicatori di allerta", "soglie di controllo", DEVI includere i KPI con alta confidenza (0.8-0.9)
 
 RISPOSTA RICHIESTA:
 Rispondi SOLO con un JSON nel seguente formato:
 
 {
-  "categories": ["objectives", "key_results", "risks", "initiatives"],
+  "categories": ["objectives", "key_results", "risks", "kpis", "initiatives"],
   "reasoning": {
     "objectives": "Spiegazione breve del perché sono rilevanti",
     "key_results": "Spiegazione breve del perché sono rilevanti", 
     "risks": "Spiegazione breve del perché sono rilevanti",
+    "kpis": "Spiegazione breve del perché sono rilevanti",
     "initiatives": "Spiegazione breve del perché sono rilevanti"
   },
   "confidence": {
     "objectives": 0.9,
     "key_results": 0.8,
     "risks": 0.7,
-    "initiatives": 0.6
+    "kpis": 0.6,
+    "initiatives": 0.5
   }
 }
 
@@ -264,5 +288,6 @@ NOTA:
 - Includi solo le categorie che ritieni rilevanti (array vuoto se nessuna)
 - I valori di confidence vanno da 0.0 a 1.0
 - Se una categoria non è rilevante, non includerla nel JSON
-- La spiegazione deve essere concisa ma chiara`
+- La spiegazione deve essere concisa ma chiara
+- Per richieste esplicite di KPI, usa confidence alta (0.8-0.9)`
 } 

@@ -45,6 +45,7 @@ export function OkrMessage({ okrSet }: OkrMessageProps) {
   const objectives = 'objectives' in okrSet && okrSet.objectives ? okrSet.objectives : []
   const keyResults = 'keyResults' in okrSet && okrSet.keyResults ? okrSet.keyResults : []
   const risks = 'risks' in okrSet && okrSet.risks ? okrSet.risks : []
+  const kpis = 'kpis' in okrSet && okrSet.kpis ? okrSet.kpis : []
   const initiatives = 'initiatives' in okrSet && okrSet.initiatives ? okrSet.initiatives : []
 
   return (
@@ -152,6 +153,52 @@ export function OkrMessage({ okrSet }: OkrMessageProps) {
               <CopyButton text={risk.title} itemId={risk.id} />
             </div>
           </div>
+            ))
+          )}
+      </div>
+      )}
+
+      {/* KPIs */}
+      {kpis.length > 0 && (
+      <div className="space-y-4">
+        <h3 className="text-xl font-semibold text-orange-600">KPI</h3>
+          {risks.length > 0 ? (
+            // Se abbiamo risks, raggruppa per risk
+            risks.map((risk) => {
+              const riskKPIs = kpis.filter(kpi => kpi.riskId === risk.id)
+              return (
+                <div key={risk.id} className="space-y-3">
+                  <h4 className="font-medium text-slate-900">{risk.title}</h4>
+                  {riskKPIs.map((kpi) => (
+                    <div key={kpi.id} className="bg-orange-50 border border-orange-200 rounded-lg p-4 ml-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h5 className="font-medium text-slate-900">{kpi.title}</h5>
+                          <div className="flex gap-4 mt-2 text-sm text-slate-600">
+                            <span>Unità: {kpi.unit}</span>
+                          </div>
+                        </div>
+                        <CopyButton text={kpi.title} itemId={kpi.id} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })
+          ) : (
+            // Se non abbiamo risks, mostra tutti i KPI
+            kpis.map((kpi) => (
+              <div key={kpi.id} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-slate-900">{kpi.title}</h4>
+                    <div className="flex gap-4 mt-2 text-sm text-slate-600">
+                      <span>Unità: {kpi.unit}</span>
+                    </div>
+                  </div>
+                  <CopyButton text={kpi.title} itemId={kpi.id} />
+                </div>
+              </div>
             ))
           )}
       </div>

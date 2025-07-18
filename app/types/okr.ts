@@ -1,4 +1,4 @@
-export type OKRCategory = 'objectives' | 'key_results' | 'risks' | 'initiatives'
+export type OKRCategory = 'objectives' | 'key_results' | 'risks' | 'kpis' | 'initiatives'
 
 export interface Objective {
   id: string
@@ -36,12 +36,22 @@ export interface Initiative {
   isMitigative: boolean
 }
 
+export interface KPI {
+  id: string
+  riskId: string
+  title: string
+  unit: string
+  isAlert: boolean
+  isQuantitative: boolean
+}
+
 export interface OKRSet {
   id: string
   team: string
   objectives: Objective[]
   keyResults: KeyResult[]
   risks: Risk[]
+  kpis: KPI[]
   initiatives: Initiative[]
   createdAt: Date
   updatedAt: Date
@@ -52,6 +62,7 @@ export interface PartialOKRSet {
   objectives?: Objective[]
   keyResults?: KeyResult[]
   risks?: Risk[]
+  kpis?: KPI[]
   initiatives?: Initiative[]
 }
 

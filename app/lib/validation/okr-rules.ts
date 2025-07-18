@@ -1,4 +1,4 @@
-import { Objective, KeyResult, Risk, Initiative, OKRSet, ValidationResult } from '@/app/types/okr'
+import { Objective, KeyResult, Risk, Initiative, KPI, OKRSet, ValidationResult } from '@/app/types/okr'
 
 export const LINKHUB_RULES = {
   objectives: {
@@ -28,6 +28,13 @@ export const LINKHUB_RULES = {
     mustHaveMitigation: true,
     mustBeRelevant: true,
     format: 'if-then' // formato "se...allora..."
+  },
+  kpis: {
+    minPerRisk: 0, // I KPI sono opzionali
+    maxPerRisk: 1,
+    mustBeQuantitative: true,
+    mustHaveUnit: true,
+    format: 'unit'
   },
   initiatives: {
     minPerRisk: 1,
@@ -160,6 +167,28 @@ export function validateInitiative(initiative: Initiative): ValidationResult {
   }
 }
 
+export function validateKPI(kpi: KPI): ValidationResult {
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  // Controllo formato unit
+  const hasValidFormat = kpi.unit
+  if (!hasValidFormat) {
+    errors.push('Il KPI deve avere un\'unità di misura')
+  }
+
+  // Controllo lunghezza titolo
+  if (kpi.title.length < 5) {
+    warnings.push('Il titolo del KPI dovrebbe essere più descrittivo')
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  }
+}
+
 export function validateOKRSet(okrSet: OKRSet): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
@@ -187,6 +216,15 @@ export function validateOKRSet(okrSet: OKRSet): ValidationResult {
 
     if (risksForKeyResult.length > LINKHUB_RULES.risks.maxPerKeyResult) {
       warnings.push(`Il Key Result "${keyResult.title}" ha troppi rischi (max ${LINKHUB_RULES.risks.maxPerKeyResult})`)
+    }
+  })
+
+  // Controllo numero di KPI per Rischio
+  okrSet.risks.forEach(risk => {
+    const kpisForRisk = okrSet.kpis.filter(kpi => kpi.riskId === risk.id)
+    
+    if (kpisForRisk.length > LINKHUB_RULES.kpis.maxPerRisk) {
+      warnings.push(`Il Rischio "${risk.title}" ha troppi KPI (max ${LINKHUB_RULES.kpis.maxPerRisk})`)
     }
   })
 

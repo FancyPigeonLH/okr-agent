@@ -28,6 +28,10 @@ const categoryLabels: Record<OKRCategory, { label: string; description: string }
     label: 'Rischi',
     description: 'Potenziali ostacoli e minacce'
   },
+  kpis: {
+    label: 'KPI',
+    description: 'Indicatori di soglia di allerta per i rischi'
+  },
   initiatives: {
     label: 'Iniziative',
     description: 'Azioni concrete per raggiungere gli obiettivi'

@@ -36,6 +36,11 @@ const categoryLabels: Record<OKRCategory, { label: string; description: string; 
     description: 'Potenziali ostacoli e minacce',
     color: 'bg-red-100 text-red-800 border-red-200'
   },
+  kpis: {
+    label: 'KPI',
+    description: 'Indicatori di soglia di allerta per i rischi',
+    color: 'bg-orange-100 text-orange-800 border-orange-200'
+  },
   initiatives: {
     label: 'Iniziative',
     description: 'Azioni concrete per raggiungere gli obiettivi',
@@ -51,12 +56,14 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
     objectives: '',
     key_results: '',
     risks: '',
+    kpis: '',
     initiatives: ''
   })
   const [confidenceScores, setConfidenceScores] = useState<Record<OKRCategory, number>>({
     objectives: 0,
     key_results: 0,
     risks: 0,
+    kpis: 0,
     initiatives: 0
   })
   const [isVisible, setIsVisible] = useState(false)
@@ -66,6 +73,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
   const [timeLeft, setTimeLeft] = useState(10)
   const [isAnalysisCollapsed, setIsAnalysisCollapsed] = useState(true)
   const [hasConfirmed, setHasConfirmed] = useState(false)
+  const [manuallyInteractedCategories, setManuallyInteractedCategories] = useState<Set<OKRCategory>>(new Set())
   const autoConfirmTimerRef = useRef<NodeJS.Timeout | null>(null)
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -76,6 +84,9 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
   }, [])
 
   useEffect(() => {
+    // Reset delle interazioni manuali quando cambia l'input
+    setManuallyInteractedCategories(new Set())
+    
     // Analizza il prompt con Gemini
     const analyzePrompt = async () => {
       setIsAnalyzing(true)
@@ -97,15 +108,69 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
 
         const analysis = await response.json()
         
-        setDetectedCategories(analysis.categories)
-        setAnalysisReasoning(analysis.reasoning)
-        setConfidenceScores(analysis.confidence)
+        let finalDetectedCategories = analysis.categories
+        let finalAnalysisReasoning = analysis.reasoning
+        let finalConfidenceScores = analysis.confidence
         
-        // Pre-seleziona solo le categorie con confidenza >= 90%
-        const highConfidenceCategories = analysis.categories.filter(
-          (category: OKRCategory) => analysis.confidence[category] >= 0.9
+        // Pre-seleziona le categorie con logica intelligente
+        const selectedCategories = analysis.categories.filter((category: OKRCategory) => {
+          const confidence = analysis.confidence[category]
+          
+          // Per KPI, usa una soglia più bassa (70%) perché sono più specifici
+          if (category === 'kpis') {
+            return confidence >= 0.7
+          }
+          
+          // Per le altre categorie, mantieni la soglia alta (90%)
+          return confidence >= 0.9
+        })
+        
+        // Logica di fallback intelligente
+        let finalSelectedCategories = selectedCategories
+        
+        // Se il prompt menziona esplicitamente KPI ma non sono stati rilevati dall'AI,
+        // li aggiungiamo comunque
+        const kpiKeywords = ['kpi', 'indicatore', 'soglia', 'allerta', 'monitoraggio', 'threshold', 'alert']
+        const hasKpiKeywords = kpiKeywords.some(keyword => 
+          userInput.toLowerCase().includes(keyword.toLowerCase())
         )
-        setSelectedCategories(highConfidenceCategories)
+        
+        if (hasKpiKeywords && !finalSelectedCategories.includes('kpis')) {
+          // Se l'AI ha rilevato KPI ma con confidenza bassa, li aggiungiamo
+          if (analysis.categories.includes('kpis')) {
+            finalSelectedCategories = [...finalSelectedCategories, 'kpis']
+          }
+          // Se l'AI non ha rilevato KPI ma il prompt li menziona, li aggiungiamo comunque
+          else {
+            finalSelectedCategories = [...finalSelectedCategories, 'kpis']
+            // Aggiungiamo anche KPI ai detected categories per la visualizzazione
+            finalDetectedCategories = [...finalDetectedCategories, 'kpis']
+            finalAnalysisReasoning = {
+              ...finalAnalysisReasoning,
+              kpis: 'Rilevato tramite analisi del prompt - richiesta esplicita di KPI'
+            }
+            finalConfidenceScores = {
+              ...finalConfidenceScores,
+              kpis: 0.8 // Confidence artificiale per KPI rilevati tramite parole chiave
+            }
+          }
+        }
+        
+        // Se nessuna categoria è stata selezionata automaticamente, 
+        // seleziona almeno objectives e key_results come fallback
+        if (finalSelectedCategories.length === 0) {
+          const fallbackCategories = analysis.categories.filter((category: OKRCategory) => 
+            ['objectives', 'key_results'].includes(category)
+          )
+          setSelectedCategories(fallbackCategories.length > 0 ? fallbackCategories : ['objectives', 'key_results'])
+        } else {
+          setSelectedCategories(finalSelectedCategories)
+        }
+        
+        // Imposta i valori finali per la visualizzazione
+        setDetectedCategories(finalDetectedCategories)
+        setAnalysisReasoning(finalAnalysisReasoning)
+        setConfidenceScores(finalConfidenceScores)
         
       } catch (error) {
         console.error('Errore nell\'analisi AI:', error)
@@ -118,19 +183,21 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
         }
         
         // Fallback: usa tutte le categorie
-        const allCategories: OKRCategory[] = ['objectives', 'key_results', 'risks', 'initiatives']
+        const allCategories: OKRCategory[] = ['objectives', 'key_results', 'risks', 'kpis', 'initiatives']
         setDetectedCategories(allCategories)
         setSelectedCategories(allCategories)
         setAnalysisReasoning({
           objectives: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
           key_results: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
           risks: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
+          kpis: 'Analisi AI non disponibile - categoria inclusa per sicurezza',
           initiatives: 'Analisi AI non disponibile - categoria inclusa per sicurezza'
         })
         setConfidenceScores({
           objectives: 0.5,
           key_results: 0.5,
           risks: 0.5,
+          kpis: 0.5,
           initiatives: 0.5
         })
       } finally {
@@ -203,6 +270,9 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
       clearInterval(countdownTimerRef.current)
     }
     
+    // Marca questa categoria come interagita manualmente
+    setManuallyInteractedCategories(prev => new Set([...prev, category]))
+    
     setSelectedCategories(prev => 
       prev.includes(category) 
         ? prev.filter(c => c !== category)
@@ -227,7 +297,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
       clearInterval(countdownTimerRef.current)
     }
     
-    setSelectedCategories(['objectives', 'key_results', 'risks', 'initiatives'])
+    setSelectedCategories(['objectives', 'key_results', 'risks', 'kpis', 'initiatives'])
   }
 
   const handleSelectNone = () => {
@@ -355,7 +425,7 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
                               {analysisReasoning[category] || 'Analisi non disponibile'}
                             </span>
                             <span className="text-blue-600 ml-2 text-xs">
-                              (Confidenza: {Math.round(confidenceScores[category] * 100)}%)
+                              (Confidenza: {confidenceScores[category] && !isNaN(confidenceScores[category]) ? `${Math.round(confidenceScores[category] * 100)}%` : 'N/A'})
                             </span>
                           </div>
                         </div>
@@ -385,24 +455,31 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
               <div className="mb-3 text-xs text-gray-600 flex items-center gap-4">
                 <span className="flex items-center gap-1">
                   <CheckCircle className="h-3 w-3 text-green-600" />
-                  Pre-selezionato (confidenza ≥90%)
+                  Alta confidenza (≥90%) - Pre-selezionato
                 </span>
                 <span className="flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3 text-blue-500" />
-                  Rilevato ma non selezionato (confidenza &lt;90%)
+                  <XCircle className="h-3 w-3 text-gray-400" />
+                  Bassa confidenza (&lt;90%) - Selezionabile manualmente
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {(Object.keys(categoryLabels) as OKRCategory[]).map((category) => {
                   const isDetected = detectedCategories.includes(category)
                   const isSelected = selectedCategories.includes(category)
+                  const hasHighConfidence = confidenceScores[category] >= 0.9
+                  
+                  // Determina l'aspetto della card basato su selezione e confidenza
+                  // Se l'utente ha interagito manualmente, rispetta la sua scelta
+                  // Altrimenti, usa la confidenza AI per pre-selezionare
+                  const hasBeenManuallyInteracted = manuallyInteractedCategories.has(category)
+                  const shouldShowAsActive = isSelected || (isDetected && hasHighConfidence && !hasBeenManuallyInteracted)
                   
                   return (
                     <div
                       key={category}
                       className={cn(
                         'p-3 rounded-lg border-2 transition-all cursor-pointer',
-                        isDetected 
+                        shouldShowAsActive 
                           ? 'border-green-300 bg-green-50' 
                           : 'border-gray-200 bg-gray-50',
                         isSelected && 'ring-2 ring-[#3a88ff] ring-opacity-50'
@@ -418,31 +495,34 @@ export function CategoryDebugger({ userInput, onCategoriesConfirm, onCancel, con
                         <span className="font-medium text-sm">
                           {categoryLabels[category].label}
                         </span>
-                        {isDetected ? (
-                          confidenceScores[category] >= 0.9 ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <CheckCircle className="h-4 w-4 text-blue-500" />
-                          )
+                        {shouldShowAsActive ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
                         ) : (
                           <XCircle className="h-4 w-4 text-gray-400" />
                         )}
                       </div>
-                      {isDetected && (
-                        <div className="mt-1">
-                          <div className="flex items-center gap-1">
-                            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                              <div 
-                                className="bg-green-500 h-1.5 rounded-full transition-all"
-                                style={{ width: `${Math.round(confidenceScores[category] * 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-gray-600">
-                              {Math.round(confidenceScores[category] * 100)}%
-                            </span>
+                      <div className="mt-1">
+                        <div className="flex items-center gap-1">
+                          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className={cn(
+                                "h-1.5 rounded-full transition-all",
+                                shouldShowAsActive 
+                                  ? "bg-green-500" 
+                                  : "bg-gray-400"
+                              )}
+                              style={{ 
+                                width: shouldShowAsActive 
+                                  ? `${Math.max(Math.round((confidenceScores[category] || 0) * 100), 10)}%` 
+                                  : `${Math.round((confidenceScores[category] || 0) * 100)}%` 
+                              }}
+                            />
                           </div>
+                          <span className="text-xs text-gray-600">
+                            {confidenceScores[category] && !isNaN(confidenceScores[category]) && confidenceScores[category] > 0 ? `${Math.round(confidenceScores[category] * 100)}%` : 'N/A'}
+                          </span>
                         </div>
-                      )}
+                      </div>
                     </div>
                   )
                 })}
