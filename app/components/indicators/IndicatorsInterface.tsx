@@ -70,19 +70,31 @@ export function IndicatorsInterface() {
 
     setIsCreating(true)
     try {
-      // TODO: Implementare la chiamata API per creare l'indicatore
-      console.log('Creando indicatore:', data)
-      console.log('Company ID:', context.selectedCompany.id)
-      
-      // Simula una chiamata API
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const response = await fetch('/api/indicators', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          companyId: context.selectedCompany.id
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Errore durante la creazione dell\'indicatore')
+      }
+
+      const newIndicator = await response.json()
+      console.log('Indicatore creato con successo:', newIndicator)
       
       setShowForm(false)
       // Ricarica la lista degli indicatori
       setRefreshKey(prev => prev + 1)
     } catch (error) {
       console.error('Errore durante la creazione dell\'indicatore:', error)
-      alert('Errore durante la creazione dell\'indicatore')
+      alert(error instanceof Error ? error.message : 'Errore durante la creazione dell\'indicatore')
     } finally {
       setIsCreating(false)
     }
