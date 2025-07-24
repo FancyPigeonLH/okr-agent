@@ -257,6 +257,7 @@ export function IndicatorsInterface() {
           onClose={() => setShowForm(false)}
           onSubmit={handleCreateIndicator}
           isLoading={isCreating}
+          companyId={selectedCompany!.id}
         />
       )}
     </div>

@@ -15,6 +15,110 @@ if (typeof window === 'undefined') {
   genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 }
 
+type ExistingIndicator = {
+  id: string
+  description: string
+  symbol: string
+  periodicity: number
+  isReverse: boolean
+}
+
+type SimilarIndicator = {
+  id: string
+  description: string
+  symbol: string
+  periodicity: number
+  isReverse: boolean
+  similarity: number
+}
+
+export async function generateSimilarIndicators(
+  newDescription: string,
+  existingIndicators: ExistingIndicator[]
+): Promise<SimilarIndicator[]> {
+  if (!genAI) {
+    throw new Error('Modello AI non disponibile - verifica la configurazione della API key')
+  }
+
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  const prompt = `
+Analizza la similarità semantica tra la descrizione di un nuovo indicatore e una lista di indicatori esistenti.
+
+NUOVO INDICATORE:
+"${newDescription}"
+
+INDICATORI ESISTENTI:
+${existingIndicators.map((indicator, index) => `
+${index + 1}. ID: ${indicator.id}
+   Descrizione: "${indicator.description}"
+   Simbolo: ${indicator.symbol}
+   Periodicità: ${indicator.periodicity} giorni
+   Inverso: ${indicator.isReverse}
+`).join('\n')}
+
+ISTRUZIONI:
+1. Analizza la similarità semantica tra il nuovo indicatore e ciascun indicatore esistente
+2. Considera: concetti simili, metriche correlate, obiettivi simili, terminologia comune
+3. Assegna un punteggio di similarità da 0.0 (completamente diverso) a 1.0 (identico)
+4. Restituisci solo gli indicatori con similarità >= 0.3 (30%)
+5. Ordina per similarità decrescente
+
+Rispondi SOLO con un JSON valido nel seguente formato:
+{
+  "similarIndicators": [
+    {
+      "id": "id_indicatore",
+      "description": "descrizione originale",
+      "symbol": "simbolo originale",
+      "periodicity": numero_periodicità,
+      "isReverse": true/false,
+      "similarity": 0.85
+    }
+  ]
+}
+
+Non includere spiegazioni o testo aggiuntivo, solo il JSON.
+`
+
+  try {
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    const output = response.text()
+
+    // Estrai JSON dall'output
+    const jsonMatch = output.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.error('Output non contiene JSON valido:', output)
+      return []
+    }
+
+    const data = JSON.parse(jsonMatch[0])
+    
+    // Valida e normalizza la risposta
+    if (!data.similarIndicators || !Array.isArray(data.similarIndicators)) {
+      return []
+    }
+
+    return data.similarIndicators
+      .filter((item: any) => 
+        item.id && 
+        item.description && 
+        item.symbol && 
+        typeof item.periodicity === 'number' &&
+        typeof item.isReverse === 'boolean' &&
+        typeof item.similarity === 'number' &&
+        item.similarity >= 0.3
+      )
+      .sort((a: any, b: any) => b.similarity - a.similarity)
+      .slice(0, 5) // Limita a 5 risultati
+
+  } catch (error) {
+    console.error('Errore nella generazione di indicatori simili:', error)
+    return []
+  }
+}
+
 export class OKRGenerator {
   private model = genAI?.getGenerativeModel({ model: 'gemini-1.5-flash' }) || null
   private maxIterations = 3

@@ -1,15 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
 import { Checkbox } from '@/app/components/ui/checkbox'
-import { X, Save, AlertCircle } from 'lucide-react'
+import { X, Save, AlertCircle, Search, CheckCircle, Info } from 'lucide-react'
 
 interface IndicatorFormProps {
   onClose: () => void
   onSubmit: (data: IndicatorFormData) => void
   isLoading?: boolean
+  companyId: string
 }
 
 export interface IndicatorFormData {
@@ -19,7 +20,16 @@ export interface IndicatorFormData {
   isReverse: boolean
 }
 
-export function IndicatorForm({ onClose, onSubmit, isLoading = false }: IndicatorFormProps) {
+type SimilarIndicator = {
+  id: string
+  description: string
+  symbol: string
+  periodicity: number
+  similarity: number
+  isReverse: boolean
+}
+
+export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId }: IndicatorFormProps) {
   const [formData, setFormData] = useState<IndicatorFormData>({
     description: '',
     periodicity: 30,
@@ -28,6 +38,54 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false }: Indicato
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [similarIndicators, setSimilarIndicators] = useState<SimilarIndicator[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showSimilarResults, setShowSimilarResults] = useState(false)
+  const [hasUsedSuggestion, setHasUsedSuggestion] = useState(false)
+
+  // Ricerca indicatori simili quando la descrizione cambia
+  useEffect(() => {
+    const searchSimilarIndicators = async () => {
+      // Non fare ricerca se l'utente ha già usato un suggerimento
+      if (hasUsedSuggestion) {
+        return
+      }
+
+      if (!formData.description.trim() || formData.description.length < 10) {
+        setSimilarIndicators([])
+        setShowSimilarResults(false)
+        return
+      }
+
+      setIsSearching(true)
+      try {
+        const response = await fetch('/api/indicators/similar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            description: formData.description,
+            companyId: companyId
+          })
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setSimilarIndicators(data.similarIndicators || [])
+          setShowSimilarResults(data.similarIndicators && data.similarIndicators.length > 0)
+        }
+      } catch (error) {
+        console.error('Errore nella ricerca di indicatori simili:', error)
+      } finally {
+        setIsSearching(false)
+      }
+    }
+
+    // Debounce per evitare troppe chiamate
+    const timeoutId = setTimeout(searchSimilarIndicators, 1000)
+    return () => clearTimeout(timeoutId)
+  }, [formData.description, companyId, hasUsedSuggestion])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,6 +126,18 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false }: Indicato
     }
   }
 
+  const handleUseSimilarIndicator = (similarIndicator: SimilarIndicator) => {
+    setFormData(prev => ({
+      ...prev,
+      description: similarIndicator.description,
+      symbol: similarIndicator.symbol,
+      periodicity: similarIndicator.periodicity,
+      isReverse: similarIndicator.isReverse
+    }))
+    setShowSimilarResults(false)
+    setHasUsedSuggestion(true) // Marca che è stato usato un suggerimento
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -92,16 +162,23 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false }: Indicato
               <label htmlFor="description" className="text-sm font-medium text-slate-700">
                 Descrizione *
               </label>
-              <textarea
-                id="description"
-                placeholder="Inserisci una descrizione dettagliata dell'indicatore..."
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className={`min-h-[100px] w-full rounded-md border px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3a88ff] focus:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50 ${
-                  errors.description ? 'border-red-500' : 'border-slate-200'
-                }`}
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <textarea
+                  id="description"
+                  placeholder="Inserisci una descrizione dettagliata dell'indicatore..."
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  className={`min-h-[100px] w-full rounded-md border px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3a88ff] focus:border-[#3a88ff] disabled:cursor-not-allowed disabled:opacity-50 ${
+                    errors.description ? 'border-red-500' : 'border-slate-200'
+                  }`}
+                  disabled={isLoading}
+                />
+                {isSearching && (
+                  <div className="absolute top-2 right-2">
+                    <Search className="h-4 w-4 animate-spin text-[#3a88ff]" />
+                  </div>
+                )}
+              </div>
               {errors.description && (
                 <div className="flex items-center gap-2 text-sm text-red-600">
                   <AlertCircle className="h-4 w-4" />
@@ -109,6 +186,47 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false }: Indicato
                 </div>
               )}
             </div>
+
+            {/* Risultati ricerca indicatori simili */}
+            {showSimilarResults && similarIndicators.length > 0 && (
+              <div className="space-y-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-800">
+                    Indicatori simili trovati ({similarIndicators.length})
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {similarIndicators.slice(0, 3).map((indicator) => (
+                    <div key={indicator.id} className="flex items-center justify-between p-3 bg-white border border-amber-200 rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-700">{indicator.description}</p>
+                        <div className="flex gap-2 mt-1 text-xs text-slate-500">
+                          <span>Simbolo: {indicator.symbol}</span>
+                          <span>•</span>
+                          <span>Periodicità: {indicator.periodicity} giorni</span>
+                          <span>•</span>
+                          <span>Similarità: {Math.round(indicator.similarity * 100)}%</span>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUseSimilarIndicator(indicator)}
+                        className="ml-2 text-amber-700 border-amber-300 hover:bg-amber-100"
+                      >
+                        <CheckCircle className="mr-1 h-3 w-3" />
+                        Usa
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-amber-700">
+                  Se uno di questi indicatori è simile a quello che vuoi creare, puoi usarlo come base o verificare se esiste già.
+                </p>
+              </div>
+            )}
 
             {/* Simbolo */}
             <div className="space-y-2">
