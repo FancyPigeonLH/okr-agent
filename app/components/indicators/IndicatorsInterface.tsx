@@ -1,12 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
-import { Settings2, X, Plus, BarChart3 } from 'lucide-react'
+import { BarChart3, Check, ChevronsUpDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { CompanyContext } from '@/app/components/chat/CompanyContext'
-import { TeamContext } from '@/app/components/chat/TeamContext'
-import { UserContext } from '@/app/components/chat/UserContext'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/app/components/ui/command'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/app/components/ui/popover'
 import { IndicatorForm, type IndicatorFormData } from './IndicatorForm'
 import { IndicatorsTable } from './IndicatorsTable'
 
@@ -17,54 +28,119 @@ type Company = {
   vision: string
 }
 
-type Team = {
-  id: string
-  name: string
-  type: string
-  impact: number
-}
-
 type User = {
   id: string
   name: string
   surname: string
   fullName: string
   email: string
-  initiatives: any[]
+}
+
+// Componente semplificato per selezionare l'utente (solo nome e cognome)
+function UserSelector({ 
+  selectedUser, 
+  onUserSelect, 
+  companyId, 
+  disabled = false 
+}: {
+  selectedUser: User | null
+  onUserSelect: (user: User | null) => void
+  companyId: string | null
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!companyId) {
+        setUsers([])
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/companies/users?companyId=${companyId}`)
+        const data = await response.json()
+        // Semplifica i dati rimuovendo le iniziative
+        const simplifiedUsers = data.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          surname: user.surname,
+          fullName: user.fullName,
+          email: user.email
+        }))
+        setUsers(simplifiedUsers)
+      } catch (error) {
+        console.error('Errore nel caricamento degli utenti:', error)
+      }
+    }
+
+    fetchUsers()
+  }, [companyId])
+
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium leading-none text-[#3a88ff]">
+        Seleziona Utente
+      </label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled || !companyId}
+            className="w-full justify-between border-[#3a88ff]/20 hover:bg-[#3a88ff]/5 hover:text-[#3a88ff] disabled:opacity-50"
+          >
+            {selectedUser ? selectedUser.fullName : "Seleziona utente..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0">
+          <Command className="max-h-[300px] overflow-auto">
+            <CommandInput placeholder="Cerca utente..." />
+            <CommandEmpty>Nessun utente trovato.</CommandEmpty>
+            <CommandGroup>
+              {users.map((user) => (
+                <CommandItem
+                  key={user.id}
+                  onSelect={() => {
+                    onUserSelect(user)
+                    setOpen(false)
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selectedUser?.id === user.id ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {user.fullName}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
 }
 
 export function IndicatorsInterface() {
-  const [showSettings, setShowSettings] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [context, setContext] = useState<{
-    selectedCompany: Company | null
-    selectedTeam: Team | null
-    selectedUser: User | null
-  }>({
-    selectedCompany: null,
-    selectedTeam: null,
-    selectedUser: null
-  })
-
-  const handleContextSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setShowSettings(false)
-  }
-
-  const handleResetContext = () => {
-    setContext({
-      selectedCompany: null,
-      selectedTeam: null,
-      selectedUser: null
-    })
-    setShowSettings(false)
-  }
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
   const handleCreateIndicator = async (data: IndicatorFormData) => {
-    if (!context.selectedCompany) {
+    if (!selectedCompany) {
       alert('Seleziona prima una company')
+      return
+    }
+
+    if (!selectedUser) {
+      alert('Seleziona prima un utente assegnato')
       return
     }
 
@@ -77,7 +153,8 @@ export function IndicatorsInterface() {
         },
         body: JSON.stringify({
           ...data,
-          companyId: context.selectedCompany.id
+          companyId: selectedCompany.id,
+          assigneeId: selectedUser.id
         })
       })
 
@@ -102,98 +179,27 @@ export function IndicatorsInterface() {
 
   return (
     <div className="flex h-screen bg-white">
-      {/* Sidebar con contesto */}
+      {/* Sidebar semplificata */}
       <div className="w-80 border-r border-[#3a88ff]/10 bg-white shadow-sm">
         <div className="p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight text-[#3a88ff]">Contesto</h2>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleResetContext}
-                className="hover:bg-[#3a88ff]/10 text-[#3a88ff] transition-colors duration-200"
-                title="Resetta filtri"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowSettings(!showSettings)}
-                className="hover:bg-[#3a88ff]/10 text-[#3a88ff] transition-colors duration-200"
-              >
-                <Settings2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <h2 className="text-lg font-semibold tracking-tight text-[#3a88ff] mb-4">Seleziona Azienda</h2>
+          
+          <CompanyContext
+            selectedCompany={selectedCompany}
+            onCompanySelect={(company) => {
+              setSelectedCompany(company)
+              setSelectedUser(null) // Reset user selection when company changes
+            }}
+          />
 
-          {showSettings ? (
-            <form onSubmit={handleContextSubmit} className="space-y-4 mt-4">
-              <CompanyContext
-                selectedCompany={context.selectedCompany}
-                onCompanySelect={(company) => {
-                  setContext({ 
-                    selectedCompany: company,
-                    selectedTeam: null,
-                    selectedUser: null
-                  })
-                }}
+          {selectedCompany && (
+            <div className="mt-6">
+              <UserSelector
+                selectedUser={selectedUser}
+                onUserSelect={setSelectedUser}
+                companyId={selectedCompany.id}
+                disabled={false}
               />
-              <TeamContext
-                selectedTeam={context.selectedTeam}
-                onTeamSelect={(team) => {
-                  setContext(prev => ({ 
-                    ...prev,
-                    selectedTeam: team,
-                    selectedUser: null
-                  }))
-                }}
-                companyId={context.selectedCompany?.id || null}
-                disabled={!context.selectedCompany}
-              />
-              <UserContext
-                selectedUser={context.selectedUser}
-                onUserSelect={(user) => setContext(prev => ({ ...prev, selectedUser: user }))}
-                companyId={context.selectedCompany?.id || null}
-                disabled={!context.selectedCompany}
-              />
-              <Button 
-                type="submit" 
-                className="w-full bg-[#3a88ff] hover:bg-[#3a88ff]/90 text-white transition-colors duration-200 shadow-sm hover:shadow-md"
-              >
-                Usa Contesto
-              </Button>
-            </form>
-          ) : (
-            <div className="space-y-2 text-sm rounded-lg bg-[#3a88ff]/5 p-3 border border-[#3a88ff]/10 mt-4">
-              {context.selectedCompany ? (
-                <>
-                  <div>
-                    <span className="font-medium text-[#3a88ff]">Company:</span> {context.selectedCompany.name}
-                  </div>
-                  {context.selectedTeam && (
-                    <div>
-                      <span className="font-medium text-[#3a88ff]">Team:</span> {context.selectedTeam.name}
-                    </div>
-                  )}
-                  {context.selectedUser && (
-                    <div>
-                      <span className="font-medium text-[#3a88ff]">Utente:</span> {context.selectedUser.fullName}
-                    </div>
-                  )}
-                  <div>
-                    <span className="font-medium text-[#3a88ff]">Mission:</span>
-                    <p className="mt-1 text-slate-600">{context.selectedCompany.mission}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-[#3a88ff]">Vision:</span>
-                    <p className="mt-1 text-slate-600">{context.selectedCompany.vision}</p>
-                  </div>
-                </>
-              ) : (
-                <p className="text-slate-500">Nessun contesto selezionato. Seleziona una company per visualizzare i suoi indicatori.</p>
-              )}
             </div>
           )}
         </div>
@@ -212,22 +218,22 @@ export function IndicatorsInterface() {
           </p>
         </div>
 
-                {/* Contenuto */}
+        {/* Contenuto */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Indicatori</h2>
             <Button 
               className="bg-[#3a88ff] hover:bg-[#3a88ff]/90"
               onClick={() => setShowForm(true)}
-              disabled={!context.selectedCompany}
+              disabled={!selectedCompany || !selectedUser}
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <BarChart3 className="mr-2 h-4 w-4" />
               Nuovo Indicatore
             </Button>
           </div>
 
-          {context.selectedCompany ? (
-            <IndicatorsTable key={refreshKey} companyId={context.selectedCompany.id} />
+          {selectedCompany ? (
+            <IndicatorsTable key={refreshKey} companyId={selectedCompany.id} />
           ) : (
             <Card>
               <CardHeader>
@@ -237,7 +243,7 @@ export function IndicatorsInterface() {
                 <div className="text-center py-8 text-slate-500">
                   <BarChart3 className="h-12 w-12 mx-auto mb-4 text-slate-300" />
                   <p className="text-lg font-medium mb-2">Seleziona una company</p>
-                  <p className="text-sm">Seleziona una company dal menu di contesto per visualizzare e creare indicatori.</p>
+                  <p className="text-sm">Seleziona una company dalla sidebar per visualizzare e creare indicatori.</p>
                 </div>
               </CardContent>
             </Card>

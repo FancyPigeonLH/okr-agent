@@ -53,12 +53,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { description, symbol, periodicity, isReverse, companyId } = body
+    const { description, symbol, periodicity, isReverse, companyId, assigneeId } = body
 
     // Validazione dei campi obbligatori
-    if (!description || !symbol || !periodicity || companyId === undefined) {
+    if (!description || !symbol || !periodicity || !companyId || !assigneeId) {
       return NextResponse.json(
-        { error: 'Tutti i campi sono obbligatori' },
+        { error: 'Tutti i campi sono obbligatori (description, symbol, periodicity, companyId, assigneeId)' },
         { status: 400 }
       )
     }
@@ -75,10 +75,6 @@ export async function POST(request: NextRequest) {
     const baseSlug = `${description.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 50)}-${Date.now()}`
     const slug = baseSlug.replace(/-+/g, '-').replace(/^-|-$/g, '')
 
-    // Per ora, dato che assigneeId è obbligatorio, usiamo un ID di default
-    // TODO: Implementare sistema di autenticazione per ottenere l'ID utente corrente
-    const defaultAssigneeId = 'default-user-id' // Questo dovrebbe essere sostituito con l'ID utente reale
-    
     // Crea l'indicatore nel database
     const newIndicator = await prisma.indicator.create({
       data: {
@@ -87,8 +83,8 @@ export async function POST(request: NextRequest) {
         periodicity: periodicity,
         isReverse: isReverse || false,
         companyId: companyId,
-        slug: slug,
-        assigneeId: defaultAssigneeId
+        assigneeId: assigneeId,
+        slug: slug
       },
       select: {
         id: true,
@@ -97,7 +93,14 @@ export async function POST(request: NextRequest) {
         periodicity: true,
         isReverse: true,
         createdAt: true,
-        companyId: true
+        companyId: true,
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            surname: true
+          }
+        }
       }
     })
 
@@ -111,6 +114,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: 'Un indicatore con questa descrizione esiste già' },
           { status: 409 }
+        )
+      }
+      if (error.message.includes('Foreign key constraint')) {
+        return NextResponse.json(
+          { error: 'Company ID o Assignee ID non validi' },
+          { status: 400 }
         )
       }
     }
