@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
-import { BarChart3, Check, ChevronsUpDown } from 'lucide-react'
+import { BarChart3, Check, ChevronsUpDown, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CompanyContext } from '@/app/components/chat/CompanyContext'
 import {
@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/app/components/ui/popover'
-import { IndicatorForm, type IndicatorFormData } from './IndicatorForm'
+import { KeyResultForm, type KeyResultFormData } from './KeyResultForm'
 import { IndicatorsTable } from './IndicatorsTable'
 
 type Company = {
@@ -127,53 +127,49 @@ function UserSelector({
 }
 
 export function IndicatorsInterface() {
-  const [showForm, setShowForm] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
+  const [showKeyResultForm, setShowKeyResultForm] = useState(false)
+  const [isCreatingKeyResult, setIsCreatingKeyResult] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
-  const handleCreateIndicator = async (data: IndicatorFormData) => {
+
+
+  const handleCreateKeyResult = async (data: KeyResultFormData) => {
     if (!selectedCompany) {
       alert('Seleziona prima una company')
       return
     }
 
-    if (!selectedUser) {
-      alert('Seleziona prima un utente assegnato')
-      return
-    }
-
-    setIsCreating(true)
+    setIsCreatingKeyResult(true)
     try {
-      const response = await fetch('/api/indicators', {
+      const response = await fetch('/api/key-results', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ...data,
-          companyId: selectedCompany.id,
-          assigneeId: selectedUser.id
+          companyId: selectedCompany.id
         })
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Errore durante la creazione dell\'indicatore')
+        throw new Error(errorData.error || 'Errore durante la creazione del Key Result')
       }
 
-      const newIndicator = await response.json()
-      console.log('Indicatore creato con successo:', newIndicator)
+      const newKeyResult = await response.json()
+      console.log('Key Result creato con successo:', newKeyResult)
       
-      setShowForm(false)
+      setShowKeyResultForm(false)
       // Ricarica la lista degli indicatori
       setRefreshKey(prev => prev + 1)
     } catch (error) {
-      console.error('Errore durante la creazione dell\'indicatore:', error)
-      alert(error instanceof Error ? error.message : 'Errore durante la creazione dell\'indicatore')
+      console.error('Errore durante la creazione del Key Result:', error)
+      alert(error instanceof Error ? error.message : 'Errore durante la creazione del Key Result')
     } finally {
-      setIsCreating(false)
+      setIsCreatingKeyResult(false)
     }
   }
 
@@ -223,12 +219,13 @@ export function IndicatorsInterface() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Indicatori</h2>
             <Button 
-              className="bg-[#3a88ff] hover:bg-[#3a88ff]/90"
-              onClick={() => setShowForm(true)}
-              disabled={!selectedCompany || !selectedUser}
+              variant="outline"
+              className="border-[#3a88ff] text-[#3a88ff] hover:bg-[#3a88ff]/10"
+              onClick={() => setShowKeyResultForm(true)}
+              disabled={!selectedCompany}
             >
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Nuovo Indicatore
+              <Target className="mr-2 h-4 w-4" />
+              + KeyResult
             </Button>
           </div>
 
@@ -251,12 +248,12 @@ export function IndicatorsInterface() {
         </div>
       </div>
 
-      {/* Form modale */}
-      {showForm && (
-        <IndicatorForm
-          onClose={() => setShowForm(false)}
-          onSubmit={handleCreateIndicator}
-          isLoading={isCreating}
+      {/* Form modale KeyResult */}
+      {showKeyResultForm && (
+        <KeyResultForm
+          onClose={() => setShowKeyResultForm(false)}
+          onSubmit={handleCreateKeyResult}
+          isLoading={isCreatingKeyResult}
           companyId={selectedCompany!.id}
         />
       )}

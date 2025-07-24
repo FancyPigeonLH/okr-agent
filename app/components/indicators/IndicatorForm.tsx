@@ -11,6 +11,7 @@ interface IndicatorFormProps {
   onSubmit: (data: IndicatorFormData) => void
   isLoading?: boolean
   companyId: string
+  onUseSuggestedIndicator?: (indicatorId: string) => void
 }
 
 export interface IndicatorFormData {
@@ -29,7 +30,7 @@ type SimilarIndicator = {
   isReverse: boolean
 }
 
-export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId }: IndicatorFormProps) {
+export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId, onUseSuggestedIndicator }: IndicatorFormProps) {
   const [formData, setFormData] = useState<IndicatorFormData>({
     description: '',
     periodicity: 30,
@@ -51,7 +52,7 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId 
         return
       }
 
-      if (!formData.description.trim() || formData.description.length < 10) {
+      if (!formData.description.trim() || formData.description.length < 5) {
         setSimilarIndicators([])
         setShowSimilarResults(false)
         return
@@ -136,6 +137,9 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId 
     }))
     setShowSimilarResults(false)
     setHasUsedSuggestion(true) // Marca che è stato usato un suggerimento
+    if (onUseSuggestedIndicator) {
+      onUseSuggestedIndicator(similarIndicator.id)
+    }
   }
 
   return (

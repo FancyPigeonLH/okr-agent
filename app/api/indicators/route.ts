@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
     const { description, symbol, periodicity, isReverse, companyId, assigneeId } = body
 
     // Validazione dei campi obbligatori
-    if (!description || !symbol || !periodicity || !companyId || !assigneeId) {
+    if (!description || !symbol || !periodicity || !companyId) {
       return NextResponse.json(
-        { error: 'Tutti i campi sono obbligatori (description, symbol, periodicity, companyId, assigneeId)' },
+        { error: 'Tutti i campi sono obbligatori (description, symbol, periodicity, companyId)' },
         { status: 400 }
       )
     }
@@ -75,6 +75,32 @@ export async function POST(request: NextRequest) {
     const baseSlug = `${description.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 50)}-${Date.now()}`
     const slug = baseSlug.replace(/-+/g, '-').replace(/^-|-$/g, '')
 
+    // Se assigneeId è vuoto, cerca un utente di default per la company
+    let finalAssigneeId = assigneeId
+    if (!assigneeId || assigneeId.trim() === '') {
+      const defaultUser = await prisma.user.findFirst({
+        where: {
+          memberships: {
+            some: {
+              team: {
+                companyId: companyId
+              }
+            }
+          }
+        },
+        select: { id: true }
+      })
+      
+      if (!defaultUser) {
+        return NextResponse.json(
+          { error: 'Nessun utente trovato per la company. Impossibile creare l\'indicatore.' },
+          { status: 400 }
+        )
+      }
+      
+      finalAssigneeId = defaultUser.id
+    }
+
     // Crea l'indicatore nel database
     const newIndicator = await prisma.indicator.create({
       data: {
@@ -83,7 +109,7 @@ export async function POST(request: NextRequest) {
         periodicity: periodicity,
         isReverse: isReverse || false,
         companyId: companyId,
-        assigneeId: assigneeId,
+        assigneeId: finalAssigneeId,
         slug: slug
       },
       select: {

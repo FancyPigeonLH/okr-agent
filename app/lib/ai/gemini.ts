@@ -61,7 +61,7 @@ ISTRUZIONI:
 1. Analizza la similarità semantica tra il nuovo indicatore e ciascun indicatore esistente
 2. Considera: concetti simili, metriche correlate, obiettivi simili, terminologia comune
 3. Assegna un punteggio di similarità da 0.0 (completamente diverso) a 1.0 (identico)
-4. Restituisci solo gli indicatori con similarità >= 0.3 (30%)
+4. Restituisci solo gli indicatori con similarità >= 0.6 (60%)
 5. Ordina per similarità decrescente
 
 Rispondi SOLO con un JSON valido nel seguente formato:
@@ -108,7 +108,7 @@ Non includere spiegazioni o testo aggiuntivo, solo il JSON.
         typeof item.periodicity === 'number' &&
         typeof item.isReverse === 'boolean' &&
         typeof item.similarity === 'number' &&
-        item.similarity >= 0.3
+        item.similarity >= 0.6
       )
       .sort((a: any, b: any) => b.similarity - a.similarity)
       .slice(0, 5) // Limita a 5 risultati
