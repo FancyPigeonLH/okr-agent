@@ -205,15 +205,27 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
       validSymbol = symbolMap[lowerSymbol] || '#'
     }
 
-    setFormData(prev => ({
-      ...prev,
-      symbol: validSymbol,
-      periodicity: aiSuggestion.periodicity,
-      isReverse: aiSuggestion.isReverse,
-      referencePeriod: aiSuggestion.referencePeriod
-    }))
+    setFormData(prev => {
+      // Aggiorna la descrizione in base al periodo di riferimento suggerito
+      let updatedDescription = prev.description
+      if (aiSuggestion.referencePeriod) {
+        // Rimuovi eventuali periodi di riferimento già presenti
+        const baseDescription = prev.description.replace(/\s*\([^)]*\)\s*$/, '').trim()
+        updatedDescription = updateDescriptionWithReferencePeriod(baseDescription, aiSuggestion.referencePeriod)
+      }
+
+      return {
+        ...prev,
+        description: updatedDescription,
+        symbol: validSymbol,
+        periodicity: aiSuggestion.periodicity,
+        isReverse: aiSuggestion.isReverse,
+        referencePeriod: aiSuggestion.referencePeriod
+      }
+    })
     setShowAiSuggestion(false)
     setHasUsedSuggestion(true) // Marca che è stato usato un suggerimento
+    setIsDescriptionManuallyEdited(false) // Marca che la descrizione è stata aggiornata automaticamente
   }
 
   const handleSubmit = (e: React.FormEvent) => {
