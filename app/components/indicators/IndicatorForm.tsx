@@ -64,7 +64,7 @@ const REFERENCE_PERIODS = [
 export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId, onUseSuggestedIndicator }: IndicatorFormProps) {
   const [formData, setFormData] = useState<IndicatorFormData>({
     description: '',
-    periodicity: 30,
+    periodicity: 30, // Default mensile
     symbol: '',
     isReverse: false,
     referencePeriod: ''
@@ -358,9 +358,14 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
 
             {/* Periodicità */}
             <div className="space-y-2">
-              <label htmlFor="periodicity" className="text-sm font-medium text-slate-700">
-                Periodicità (giorni) *
-              </label>
+              <div>
+                <label htmlFor="periodicity" className="text-sm font-medium text-slate-700">
+                  Periodicità (giorni) *
+                </label>
+                <p className="text-xs text-slate-500 mt-1">
+                  Ogni quanto vuoi misurare questo indicatore?
+                </p>
+              </div>
               <select
                 id="periodicity"
                 value={formData.periodicity}
@@ -370,7 +375,6 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
                 }`}
                 disabled={isLoading}
               >
-                <option value="1">Giornaliera (1 giorno)</option>
                 <option value="7">Settimanale (7 giorni)</option>
                 <option value="30">Mensile (30 giorni)</option>
                 <option value="90">Trimestrale (90 giorni)</option>
