@@ -61,7 +61,7 @@ ISTRUZIONI:
 1. Analizza la similarità semantica tra il nuovo indicatore e ciascun indicatore esistente
 2. Considera: concetti simili, metriche correlate, obiettivi simili, terminologia comune
 3. Assegna un punteggio di similarità da 0.0 (completamente diverso) a 1.0 (identico)
-4. Restituisci solo gli indicatori con similarità >= 0.6 (60%)
+4. Restituisci solo gli indicatori con similarità >= 0.75 (75%)
 5. Ordina per similarità decrescente
 
 Rispondi SOLO con un JSON valido nel seguente formato:
@@ -108,7 +108,7 @@ Non includere spiegazioni o testo aggiuntivo, solo il JSON.
         typeof item.periodicity === 'number' &&
         typeof item.isReverse === 'boolean' &&
         typeof item.similarity === 'number' &&
-        item.similarity >= 0.6
+        item.similarity >= 0.75
       )
       .sort((a: any, b: any) => b.similarity - a.similarity)
       .slice(0, 5) // Limita a 5 risultati
@@ -116,6 +116,165 @@ Non includere spiegazioni o testo aggiuntivo, solo il JSON.
   } catch (error) {
     console.error('Errore nella generazione di indicatori simili:', error)
     return []
+  }
+}
+
+export interface IndicatorSuggestion {
+  symbol: string
+  periodicity: number
+  isReverse: boolean
+  referencePeriod: string
+  confidence: number
+  reasoning: string
+}
+
+export async function suggestIndicatorFields(
+  description: string
+): Promise<IndicatorSuggestion> {
+  if (!genAI) {
+    throw new Error('Modello AI non disponibile - verifica la configurazione della API key')
+  }
+
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  const prompt = `
+Analizza la descrizione di un indicatore e suggerisci i campi appropriati per completarlo.
+
+DESCRIZIONE INDICATORE:
+"${description}"
+
+ISTRUZIONI:
+1. Analizza il tipo di metrica descritta
+2. Suggerisci un simbolo appropriato (MASSIMO 2 CARATTERI):
+   - "#" per contatori (es: numero di clienti, reclami, ordini)
+   - "%" per percentuali e tassi
+   - "€" o "$" per valute
+   - "gg" per giorni
+   - "h" per ore
+   - "kg" per peso
+   - "km" per distanze
+   - "€/h" per costi orari
+   - "€/kg" per costi per unità
+   - "h/gg" per ore per giorno
+   - "gg/m" per giorni per mese
+   - "€/m" per costi mensili
+   - "€/a" per costi annuali
+3. Suggerisci una periodicità di misurazione appropriata
+4. Determina se è un indicatore inverso (valori più bassi = meglio)
+5. Suggerisci un periodo di riferimento appropriato
+
+OPZIONI PERIODICITÀ:
+- 7 giorni (settimanale)
+- 30 giorni (mensile) 
+- 90 giorni (trimestrale)
+- 180 giorni (semestrale)
+- 365 giorni (annuale)
+
+OPZIONI PERIODO DI RIFERIMENTO:
+- "last_period": Ultimo periodo (l'ultimo ciclo di misurazione completato)
+- "ytd": Year to Date (YTD) - dall'inizio dell'anno al periodo corrente
+- "last_12_periods": Ultimi 12 periodi (ultimi 12 cicli di misurazione)
+
+ESEMPI:
+- "Fatturato mensile" → simbolo: "€", periodicità: 30, inverso: false, riferimento: "last_period"
+- "Tasso di errore" → simbolo: "%", periodicità: 30, inverso: true, riferimento: "last_period"
+- "Numero di clienti attivi" → simbolo: "#", periodicità: 30, inverso: false, riferimento: "last_12_periods"
+- "Costi operativi" → simbolo: "€", periodicità: 30, inverso: true, riferimento: "ytd"
+- "Tempo di risposta" → simbolo: "ms", periodicità: 30, inverso: true, riferimento: "last_period"
+- "Durata progetto" → simbolo: "gg", periodicità: 30, inverso: true, riferimento: "last_period"
+- "Produttività oraria" → simbolo: "h", periodicità: 30, inverso: false, riferimento: "last_period"
+
+Rispondi SOLO con un JSON valido nel seguente formato:
+{
+  "symbol": "simbolo_suggerito",
+  "periodicity": numero_periodicità,
+  "isReverse": true/false,
+  "referencePeriod": "last_month|ytd|last_12_months",
+  "confidence": 0.85,
+  "reasoning": "Breve spiegazione del ragionamento"
+}
+
+Non includere spiegazioni o testo aggiuntivo, solo il JSON.
+`
+
+  try {
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    const output = response.text()
+
+    // Estrai JSON dall'output
+    const jsonMatch = output.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      throw new Error('Output non contiene JSON valido')
+    }
+
+    const data = JSON.parse(jsonMatch[0])
+    
+    // Valida e normalizza la risposta
+    if (!data.symbol || typeof data.periodicity !== 'number' || typeof data.isReverse !== 'boolean' || !data.referencePeriod) {
+      throw new Error('Risposta AI non valida: campi mancanti o non corretti')
+    }
+
+    // Valida il simbolo (massimo 2 caratteri)
+    if (typeof data.symbol === 'string' && data.symbol.length > 2) {
+      // Se il simbolo è troppo lungo, prova a convertirlo in un simbolo standard
+      const symbolMap: Record<string, string> = {
+        'clienti': '#',
+        'reclami': '#',
+        'ordini': '#',
+        'unità': '#',
+        'pezzi': '#',
+        'giorni': 'gg',
+        'ore': 'h',
+        'minuti': 'min',
+        'secondi': 's',
+        'euro': '€',
+        'dollari': '$',
+        'chilogrammi': 'kg',
+        'chilometri': 'km',
+        'metri': 'm',
+        'litri': 'l',
+        'percentuale': '%',
+        'percento': '%'
+      }
+      
+      const lowerSymbol = data.symbol.toLowerCase()
+      data.symbol = symbolMap[lowerSymbol] || '#'
+    }
+
+    // Valida la periodicità
+    const validPeriodicities = [7, 30, 90, 180, 365]
+    if (!validPeriodicities.includes(data.periodicity)) {
+      data.periodicity = 30 // Default a mensile
+    }
+
+    // Valida il periodo di riferimento
+    const validReferencePeriods = ['last_period', 'ytd', 'last_12_periods']
+    if (!validReferencePeriods.includes(data.referencePeriod)) {
+      data.referencePeriod = 'last_period' // Default
+    }
+
+    return {
+      symbol: data.symbol,
+      periodicity: data.periodicity,
+      isReverse: data.isReverse,
+      referencePeriod: data.referencePeriod,
+      confidence: data.confidence || 0.7,
+      reasoning: data.reasoning || 'Suggerimento basato sull\'analisi della descrizione'
+    }
+
+  } catch (error) {
+    console.error('Errore nella generazione di suggerimenti per indicatori:', error)
+    
+    // Fallback con valori di default
+    return {
+      symbol: '#',
+      periodicity: 30,
+      isReverse: false,
+      referencePeriod: 'last_period',
+      confidence: 0.5,
+      reasoning: 'Suggerimento di fallback - analisi AI non disponibile'
+    }
   }
 }
 

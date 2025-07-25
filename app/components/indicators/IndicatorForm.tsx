@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
 import { Checkbox } from '@/app/components/ui/checkbox'
-import { X, Save, AlertCircle, Search, CheckCircle, Info, Calendar, TrendingUp } from 'lucide-react'
+import { X, Save, AlertCircle, Search, CheckCircle, Info, Calendar, TrendingUp, Sparkles } from 'lucide-react'
 
 interface IndicatorFormProps {
   onClose: () => void
@@ -39,25 +39,34 @@ type SimilarIndicator = {
   isReverse: boolean
 }
 
+type AISuggestion = {
+  symbol: string
+  periodicity: number
+  isReverse: boolean
+  referencePeriod: string
+  confidence: number
+  reasoning: string
+}
+
 // Opzioni per il periodo di riferimento
 const REFERENCE_PERIODS = [
   {
-    value: 'last_month',
-    label: 'Mese su mese',
-    description: 'Il periodo di tempo è il mese di riferimento appena trascorso',
-    example: 'Fatturato del mese di gennaio 2024'
+    value: 'last_period',
+    label: 'Ultimo periodo',
+    description: 'Il periodo di tempo è l\'ultimo ciclo di misurazione completato',
+    example: 'Fatturato dell\'ultimo mese (se periodicità mensile) o dell\'ultimo trimestre (se periodicità trimestrale)'
   },
   {
     value: 'ytd',
     label: 'Year to Date (YTD)',
-    description: 'Dall&apos;inizio dell&apos;anno corrente al termine del mese di riferimento',
-    example: 'Fatturato cumulativo da gennaio a marzo 2024'
+    description: 'Dall\'inizio dell\'anno corrente al termine del periodo di riferimento',
+    example: 'Fatturato cumulativo da gennaio al periodo corrente'
   },
   {
-    value: 'last_12_months',
+    value: 'last_12_periods',
     label: 'Last Twelve Months (LTM)',
     description: 'Ultimi 12 mesi rolling',
-    example: 'Fatturato degli ultimi 12 mesi (aprile 2023 - marzo 2024)'
+    example: 'Fatturato degli ultimi 12 mesi (aprile 2024 - marzo 2025)'
   }
 ]
 
@@ -76,12 +85,16 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
   const [showSimilarResults, setShowSimilarResults] = useState(false)
   const [hasUsedSuggestion, setHasUsedSuggestion] = useState(false)
   const [searchCompleted, setSearchCompleted] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null)
+  const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false)
+  const [showAiSuggestion, setShowAiSuggestion] = useState(false)
+  const [isDescriptionManuallyEdited, setIsDescriptionManuallyEdited] = useState(false)
 
-  // Ricerca indicatori simili quando la descrizione cambia
+  // Ricerca indicatori simili quando la descrizione cambia manualmente
   useEffect(() => {
     const searchSimilarIndicators = async () => {
-      // Non fare ricerca se l'utente ha già usato un suggerimento
-      if (hasUsedSuggestion) {
+      // Non fare ricerca se l'utente ha già usato un suggerimento o se la descrizione non è stata modificata manualmente
+      if (hasUsedSuggestion || !isDescriptionManuallyEdited) {
         return
       }
 
@@ -122,7 +135,86 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
     // Debounce per evitare troppe chiamate
     const timeoutId = setTimeout(searchSimilarIndicators, 1000)
     return () => clearTimeout(timeoutId)
-  }, [formData.description, companyId, hasUsedSuggestion])
+  }, [formData.description, companyId, hasUsedSuggestion, isDescriptionManuallyEdited])
+
+  // Funzione per richiedere suggerimento AI
+  const requestAISuggestion = async () => {
+    if (!formData.description.trim() || formData.description.length < 3) {
+      return
+    }
+
+    // Nascondi i risultati della ricerca intelligente quando si avvia l'analisi AI
+    setShowSimilarResults(false)
+    setSearchCompleted(false)
+
+    setIsGeneratingSuggestion(true)
+    try {
+      const response = await fetch('/api/indicators/suggest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: formData.description
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setAiSuggestion(data.suggestion)
+        setShowAiSuggestion(true)
+      } else {
+        console.error('Errore nella richiesta di suggerimento AI')
+      }
+    } catch (error) {
+      console.error('Errore nella richiesta di suggerimento AI:', error)
+    } finally {
+      setIsGeneratingSuggestion(false)
+    }
+  }
+
+  // Funzione per applicare il suggerimento AI
+  const applyAISuggestion = () => {
+    if (!aiSuggestion) return
+
+    // Valida il simbolo prima di applicarlo
+    let validSymbol = aiSuggestion.symbol
+    if (aiSuggestion.symbol.length > 2) {
+      // Mappa di conversione per simboli troppo lunghi
+      const symbolMap: Record<string, string> = {
+        'clienti': '#',
+        'reclami': '#',
+        'ordini': '#',
+        'unità': '#',
+        'pezzi': '#',
+        'giorni': 'gg',
+        'ore': 'h',
+        'minuti': 'min',
+        'secondi': 's',
+        'euro': '€',
+        'dollari': '$',
+        'chilogrammi': 'kg',
+        'chilometri': 'km',
+        'metri': 'm',
+        'litri': 'l',
+        'percentuale': '%',
+        'percento': '%'
+      }
+      
+      const lowerSymbol = aiSuggestion.symbol.toLowerCase()
+      validSymbol = symbolMap[lowerSymbol] || '#'
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      symbol: validSymbol,
+      periodicity: aiSuggestion.periodicity,
+      isReverse: aiSuggestion.isReverse,
+      referencePeriod: aiSuggestion.referencePeriod
+    }))
+    setShowAiSuggestion(false)
+    setHasUsedSuggestion(true) // Marca che è stato usato un suggerimento
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -173,6 +265,15 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
     // Se l'utente modifica manualmente la descrizione, resetta il flag hasUsedSuggestion
     if (field === 'description') {
       setHasUsedSuggestion(false)
+      setIsDescriptionManuallyEdited(true)
+      // Nascondi il suggerimento AI se l'utente modifica la descrizione
+      setShowAiSuggestion(false)
+      setAiSuggestion(null)
+    }
+    
+    // Se l'utente modifica manualmente altri campi dopo aver ricevuto un suggerimento AI, nascondi il suggerimento
+    if (showAiSuggestion && field !== 'description') {
+      setShowAiSuggestion(false)
     }
   }
 
@@ -188,6 +289,9 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
     setShowSimilarResults(false)
     setSearchCompleted(false)
     setHasUsedSuggestion(true) // Marca che è stato usato un suggerimento
+    // Nascondi il suggerimento AI se l'utente usa un indicatore simile
+    setShowAiSuggestion(false)
+    setAiSuggestion(null)
     if (onUseSuggestedIndicator) {
       onUseSuggestedIndicator(similarIndicator.id)
     }
@@ -206,8 +310,26 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
     // Rimuovi eventuali periodi di riferimento già presenti nella descrizione
     const cleanDescription = baseDescription.replace(/\s*\([^)]*\)\s*$/, '').trim()
     
-    // Aggiungiamo il contesto del periodo di riferimento
+    // Per "ultimo periodo", usa la periodicità specifica
+    if (referencePeriod === 'last_period') {
+      const periodicityLabel = getPeriodicityLabel(formData.periodicity)
+      return `${cleanDescription} (${periodicityLabel})`
+    }
+    
+    // Per gli altri periodi, usa il label standard
     return `${cleanDescription} (${period.label.toLowerCase()})`
+  }
+
+  // Funzione helper per ottenere il label della periodicità
+  const getPeriodicityLabel = (periodicity: number): string => {
+    switch (periodicity) {
+      case 7: return 'ultima settimana'
+      case 30: return 'ultimo mese'
+      case 90: return 'ultimo trimestre'
+      case 180: return 'ultimo semestre'
+      case 365: return 'ultimo anno'
+      default: return 'ultimo periodo'
+    }
   }
 
   // Aggiorna la descrizione quando cambia il periodo di riferimento
@@ -220,6 +342,8 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
         // Rimuovi eventuali periodi di riferimento già presenti
         const baseDescription = prev.description.replace(/\s*\([^)]*\)\s*$/, '').trim()
         updatedData.description = updateDescriptionWithReferencePeriod(baseDescription, referencePeriod)
+        // Marca che la descrizione è stata aggiornata automaticamente, non manualmente
+        setIsDescriptionManuallyEdited(false)
       }
       
       return updatedData
@@ -247,9 +371,33 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Descrizione */}
             <div className="space-y-2">
-              <label htmlFor="description" className="text-sm font-medium text-slate-700">
-                Descrizione *
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="description" className="text-sm font-medium text-slate-700">
+                  Descrizione *
+                </label>
+                {formData.description.trim().length >= 3 && !hasUsedSuggestion && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={requestAISuggestion}
+                    disabled={isGeneratingSuggestion || isLoading}
+                    className="text-[#3a88ff] border-[#3a88ff] hover:bg-[#3a88ff] hover:text-white transition-all duration-300"
+                  >
+                    {isGeneratingSuggestion ? (
+                      <>
+                        <Sparkles className="mr-1 h-3 w-3 animate-spin" />
+                        Analizzando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1 h-3 w-3" />
+                        Analisi AI
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
               <div className="relative">
                 <textarea
                   id="description"
@@ -326,9 +474,88 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
 
             {/* Messaggio quando non ci sono risultati */}
             {searchCompleted && !isSearching && formData.description.length >= 3 && similarIndicators.length === 0 && (
-              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-3 rounded-lg border border-green-200">
-                <Info className="h-4 w-4 text-green-600" />
-                <span>Nessun indicatore simile trovato. Puoi procedere con la creazione di un nuovo indicatore.</span>
+              <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <Info className="h-4 w-4 text-blue-600" />
+                <span>
+                  Nessun indicatore simile trovato. Procediamo alla creazione dell'indicatore "<strong>{formData.description}</strong>": 
+                  <strong className="ml-1">sfrutta l'Analisi AI</strong> per individuare le caratteristiche migliori!
+                </span>
+              </div>
+            )}
+
+            {/* Suggerimento AI */}
+            {showAiSuggestion && aiSuggestion && (
+              <div className="space-y-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-800">
+                    Suggerimento AI ({Math.round(aiSuggestion.confidence * 100)}% confidenza)
+                  </span>
+                </div>
+                
+                <div className="bg-white border border-purple-200 rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-slate-700">Simbolo:</span>
+                      <span className={`ml-2 ${aiSuggestion.symbol.length > 2 ? 'text-red-600' : 'text-purple-700'}`}>
+                        {aiSuggestion.symbol}
+                        {aiSuggestion.symbol.length > 2 && (
+                          <span className="text-xs text-red-500 ml-1">(troppo lungo)</span>
+                        )}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">Periodicità:</span>
+                      <span className="ml-2 text-purple-700">
+                        {aiSuggestion.periodicity === 7 && 'Settimanale (7 giorni)'}
+                        {aiSuggestion.periodicity === 30 && 'Mensile (30 giorni)'}
+                        {aiSuggestion.periodicity === 90 && 'Trimestrale (90 giorni)'}
+                        {aiSuggestion.periodicity === 180 && 'Semestrale (180 giorni)'}
+                        {aiSuggestion.periodicity === 365 && 'Annuale (365 giorni)'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">Indicatore inverso:</span>
+                      <span className="ml-2 text-purple-700">
+                        {aiSuggestion.isReverse ? 'Sì' : 'No'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">Periodo di riferimento:</span>
+                      <span className="ml-2 text-purple-700">
+                        {aiSuggestion.referencePeriod === 'last_period' && 'Ultimo periodo'}
+                        {aiSuggestion.referencePeriod === 'ytd' && 'Year to Date (YTD)'}
+                        {aiSuggestion.referencePeriod === 'last_12_periods' && 'Last Twelve Months (LTM)'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-purple-700 bg-purple-100 p-3 rounded border border-purple-200">
+                    <strong>Ragionamento:</strong> {aiSuggestion.reasoning}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={applyAISuggestion}
+                      className="text-purple-700 border-purple-300 hover:bg-purple-100"
+                    >
+                      <CheckCircle className="mr-1 h-3 w-3" />
+                      Applica suggerimento
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAiSuggestion(false)}
+                      className="text-slate-600 hover:text-slate-800"
+                    >
+                      Ignora
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
 
