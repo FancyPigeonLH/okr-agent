@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/app/components/ui/popover'
-import { IndicatorForm, type IndicatorFormData } from './IndicatorForm'
+import { IndicatorForm, type IndicatorSubmitData } from './IndicatorForm'
 
 interface KeyResultFormProps {
   onClose: () => void
@@ -145,7 +145,7 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
     }
   }
 
-  const handleCreateIndicator = async (indicatorData: IndicatorFormData) => {
+  const handleCreateIndicator = async (indicatorData: IndicatorSubmitData) => {
     setIsCreatingIndicator(true)
     try {
       const response = await fetch('/api/indicators', {
@@ -230,7 +230,7 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
                     className="text-[#3a88ff] border-[#3a88ff] hover:bg-[#3a88ff]/10"
                   >
                     <Plus className="mr-1 h-3 w-3" />
-                    + Indicatore
+                    Indicatore
                   </Button>
                 </div>
                 <Popover open={indicatorOpen} onOpenChange={setIndicatorOpen}>

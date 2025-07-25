@@ -4,17 +4,26 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
 import { Checkbox } from '@/app/components/ui/checkbox'
-import { X, Save, AlertCircle, Search, CheckCircle, Info } from 'lucide-react'
+import { X, Save, AlertCircle, Search, CheckCircle, Info, Calendar, TrendingUp } from 'lucide-react'
 
 interface IndicatorFormProps {
   onClose: () => void
-  onSubmit: (data: IndicatorFormData) => void
+  onSubmit: (data: IndicatorSubmitData) => void
   isLoading?: boolean
   companyId: string
   onUseSuggestedIndicator?: (indicatorId: string) => void
 }
 
 export interface IndicatorFormData {
+  description: string
+  periodicity: number
+  symbol: string
+  isReverse: boolean
+  referencePeriod: string
+}
+
+// Interfaccia per i dati da inviare al server (senza referencePeriod)
+export interface IndicatorSubmitData {
   description: string
   periodicity: number
   symbol: string
@@ -30,12 +39,35 @@ type SimilarIndicator = {
   isReverse: boolean
 }
 
+// Opzioni per il periodo di riferimento
+const REFERENCE_PERIODS = [
+  {
+    value: 'last_month',
+    label: 'Mese su mese',
+    description: 'Il periodo di tempo è il mese di riferimento appena trascorso',
+    example: 'Fatturato del mese di gennaio 2024'
+  },
+  {
+    value: 'ytd',
+    label: 'Year to Date (YTD)',
+    description: 'Dall&apos;inizio dell&apos;anno corrente al termine del mese di riferimento',
+    example: 'Fatturato cumulativo da gennaio a marzo 2024'
+  },
+  {
+    value: 'last_12_months',
+    label: 'Last Twelve Months (LTM)',
+    description: 'Ultimi 12 mesi rolling',
+    example: 'Fatturato degli ultimi 12 mesi (aprile 2023 - marzo 2024)'
+  }
+]
+
 export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId, onUseSuggestedIndicator }: IndicatorFormProps) {
   const [formData, setFormData] = useState<IndicatorFormData>({
     description: '',
     periodicity: 30,
     symbol: '',
-    isReverse: false
+    isReverse: false,
+    referencePeriod: ''
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -43,6 +75,7 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
   const [isSearching, setIsSearching] = useState(false)
   const [showSimilarResults, setShowSimilarResults] = useState(false)
   const [hasUsedSuggestion, setHasUsedSuggestion] = useState(false)
+  const [searchCompleted, setSearchCompleted] = useState(false)
 
   // Ricerca indicatori simili quando la descrizione cambia
   useEffect(() => {
@@ -52,9 +85,10 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
         return
       }
 
-      if (!formData.description.trim() || formData.description.length < 5) {
+      if (!formData.description.trim() || formData.description.length < 3) {
         setSimilarIndicators([])
         setShowSimilarResults(false)
+        setSearchCompleted(false)
         return
       }
 
@@ -75,9 +109,11 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
           const data = await response.json()
           setSimilarIndicators(data.similarIndicators || [])
           setShowSimilarResults(data.similarIndicators && data.similarIndicators.length > 0)
+          setSearchCompleted(true)
         }
       } catch (error) {
         console.error('Errore nella ricerca di indicatori simili:', error)
+        setSearchCompleted(true)
       } finally {
         setIsSearching(false)
       }
@@ -112,7 +148,15 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
     }
     
     setErrors({})
-    onSubmit(formData)
+    
+    // Rimuovi referencePeriod dai dati da inviare (non viene salvato nel database)
+    const dataToSubmit = {
+      description: formData.description,
+      periodicity: formData.periodicity,
+      symbol: formData.symbol,
+      isReverse: formData.isReverse
+    }
+    onSubmit(dataToSubmit as IndicatorSubmitData)
   }
 
   const handleInputChange = (field: keyof IndicatorFormData, value: string | number | boolean) => {
@@ -125,6 +169,11 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
         return newErrors
       })
     }
+    
+    // Se l'utente modifica manualmente la descrizione, resetta il flag hasUsedSuggestion
+    if (field === 'description') {
+      setHasUsedSuggestion(false)
+    }
   }
 
   const handleUseSimilarIndicator = (similarIndicator: SimilarIndicator) => {
@@ -133,13 +182,48 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
       description: similarIndicator.description,
       symbol: similarIndicator.symbol,
       periodicity: similarIndicator.periodicity,
-      isReverse: similarIndicator.isReverse
+      isReverse: similarIndicator.isReverse,
+      referencePeriod: '' // Non resettare il periodo di riferimento
     }))
     setShowSimilarResults(false)
+    setSearchCompleted(false)
     setHasUsedSuggestion(true) // Marca che è stato usato un suggerimento
     if (onUseSuggestedIndicator) {
       onUseSuggestedIndicator(similarIndicator.id)
     }
+  }
+
+  // Funzione per aggiornare la descrizione in base al periodo di riferimento
+  const updateDescriptionWithReferencePeriod = (baseDescription: string, referencePeriod: string) => {
+    if (!baseDescription.trim() || !referencePeriod) return baseDescription
+
+    const period = REFERENCE_PERIODS.find(p => p.value === referencePeriod)
+    if (!period) return baseDescription
+
+    // Se la descrizione è già molto specifica, non la modifichiamo
+    if (baseDescription.length > 100) return baseDescription
+
+    // Rimuovi eventuali periodi di riferimento già presenti nella descrizione
+    const cleanDescription = baseDescription.replace(/\s*\([^)]*\)\s*$/, '').trim()
+    
+    // Aggiungiamo il contesto del periodo di riferimento
+    return `${cleanDescription} (${period.label.toLowerCase()})`
+  }
+
+  // Aggiorna la descrizione quando cambia il periodo di riferimento
+  const handleReferencePeriodChange = (referencePeriod: string) => {
+    setFormData(prev => {
+      const updatedData: IndicatorFormData = { ...prev, referencePeriod }
+      
+      // Aggiorna la descrizione se non è stata modificata manualmente dopo l'ultimo suggerimento
+      if (!hasUsedSuggestion && prev.description.trim() && referencePeriod) {
+        // Rimuovi eventuali periodi di riferimento già presenti
+        const baseDescription = prev.description.replace(/\s*\([^)]*\)\s*$/, '').trim()
+        updatedData.description = updateDescriptionWithReferencePeriod(baseDescription, referencePeriod)
+      }
+      
+      return updatedData
+    })
   }
 
   return (
@@ -183,6 +267,14 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
                   </div>
                 )}
               </div>
+              
+              {/* Messaggio di ricerca in corso */}
+              {isSearching && (
+                <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <Search className="h-4 w-4 animate-spin" />
+                  <span>Ricerca indicatori simili in corso...</span>
+                </div>
+              )}
               {errors.description && (
                 <div className="flex items-center gap-2 text-sm text-red-600">
                   <AlertCircle className="h-4 w-4" />
@@ -229,6 +321,14 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
                 <p className="text-xs text-amber-700">
                   Se uno di questi indicatori è simile a quello che vuoi creare, puoi usarlo come base o verificare se esiste già.
                 </p>
+              </div>
+            )}
+
+            {/* Messaggio quando non ci sono risultati */}
+            {searchCompleted && !isSearching && formData.description.length >= 3 && similarIndicators.length === 0 && (
+              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-3 rounded-lg border border-green-200">
+                <Info className="h-4 w-4 text-green-600" />
+                <span>Nessun indicatore simile trovato. Puoi procedere con la creazione di un nuovo indicatore.</span>
               </div>
             )}
 
@@ -285,6 +385,69 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
               )}
             </div>
 
+            {/* Periodo di Riferimento */}
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-[#3a88ff]" />
+                  <label className="text-sm font-medium text-slate-700">
+                    Periodo di Riferimento
+                  </label>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Scegli il periodo di tempo su cui calcolare l&apos;indicatore
+                </p>
+              </div>
+              
+              {/* Suggerimento prima delle alternative */}
+              <div className="text-xs text-slate-500 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                <div className="flex items-start gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <p><strong>Suggerimento:</strong> Il periodo di riferimento aiuta a definire meglio la descrizione dell&apos;indicatore. 
+                  Scegli l&apos;opzione che meglio rappresenta come vuoi analizzare i tuoi dati nel tempo.</p>
+                </div>
+              </div>
+              
+              <div className="grid gap-3">
+                {REFERENCE_PERIODS.map((period) => (
+                  <div
+                    key={period.value}
+                    className={`relative p-4 border rounded-lg cursor-pointer transition-all ${
+                      formData.referencePeriod === period.value
+                        ? 'border-[#3a88ff] bg-blue-50'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                    onClick={() => handleReferencePeriodChange(period.value)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex-shrink-0 ${
+                        formData.referencePeriod === period.value
+                          ? 'border-[#3a88ff] bg-[#3a88ff]'
+                          : 'border-slate-300'
+                      }`}>
+                        {formData.referencePeriod === period.value && (
+                          <div className="w-2 h-2 bg-white rounded-full m-0.5" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-700">
+                            {period.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">
+                          {period.description}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-2 italic">
+                          Esempio: {period.example}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Inverso */}
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -299,7 +462,7 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
             </div>
             
             <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
-              <p><strong>Indicatore inverso:</strong> Seleziona questa opzione se valori più bassi dell'indicatore sono migliori (es. errori, costi, tempo).</p>
+              <p><strong>Indicatore inverso:</strong> Seleziona questa opzione se valori più bassi dell&apos;indicatore sono migliori (es. errori, costi, tempo).</p>
             </div>
 
             {/* Pulsanti */}
@@ -308,19 +471,24 @@ export function IndicatorForm({ onClose, onSubmit, isLoading = false, companyId,
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                disabled={isLoading}
+                disabled={isLoading || isSearching}
               >
                 Annulla
               </Button>
               <Button
                 type="submit"
                 className="bg-[#3a88ff] hover:bg-[#3a88ff]/90"
-                disabled={isLoading}
+                disabled={isLoading || isSearching}
               >
                 {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                     Creando...
+                  </>
+                ) : isSearching ? (
+                  <>
+                    <Search className="mr-2 h-4 w-4 animate-spin" />
+                    Ricerca in corso...
                   </>
                 ) : (
                   <>
