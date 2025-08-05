@@ -72,6 +72,8 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
   const [objectiveOpen, setObjectiveOpen] = useState(false)
   const [showIndicatorForm, setShowIndicatorForm] = useState(false)
   const [isCreatingIndicator, setIsCreatingIndicator] = useState(false)
+  const [indicatorUsage, setIndicatorUsage] = useState<{ teamCount: number; teams: Array<{ id: string; name: string }> } | null>(null)
+  const [isLoadingUsage, setIsLoadingUsage] = useState(false)
 
   // Carica indicatori e obiettivi
   useEffect(() => {
@@ -145,6 +147,31 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
     }
   }
 
+  // Funzione per caricare l'utilizzo dell'indicatore
+  const fetchIndicatorUsage = async (indicatorId: string) => {
+    if (!indicatorId) {
+      setIndicatorUsage(null)
+      return
+    }
+
+    setIsLoadingUsage(true)
+    try {
+      const response = await fetch(`/api/indicators/usage?indicatorId=${indicatorId}&companyId=${companyId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setIndicatorUsage(data)
+      } else {
+        console.error('Errore nel caricamento dell\'utilizzo dell\'indicatore')
+        setIndicatorUsage(null)
+      }
+    } catch (error) {
+      console.error('Errore nel caricamento dell\'utilizzo dell\'indicatore:', error)
+      setIndicatorUsage(null)
+    } finally {
+      setIsLoadingUsage(false)
+    }
+  }
+
   const handleCreateIndicator = async (indicatorData: IndicatorSubmitData) => {
     setIsCreatingIndicator(true)
     try {
@@ -178,6 +205,8 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
       setIndicators(prev => [newIndicatorForDropdown, ...prev])
       setSelectedIndicator(newIndicatorForDropdown)
       handleInputChange('indicatorId', newIndicator.id)
+      // Carica l'utilizzo del nuovo indicatore (sarà 0)
+      fetchIndicatorUsage(newIndicator.id)
       setShowIndicatorForm(false)
     } catch (error) {
       console.error('Errore durante la creazione dell\'indicatore:', error)
@@ -192,6 +221,8 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
     if (indicator) {
       setSelectedIndicator(indicator)
       handleInputChange('indicatorId', indicator.id)
+      // Carica l'utilizzo dell'indicatore suggerito
+      fetchIndicatorUsage(indicator.id)
     }
     setShowIndicatorForm(false)
   }
@@ -257,6 +288,8 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
                               setSelectedIndicator(indicator)
                               handleInputChange('indicatorId', indicator.id)
                               setIndicatorOpen(false)
+                              // Carica l'utilizzo dell'indicatore selezionato
+                              fetchIndicatorUsage(indicator.id)
                             }}
                           >
                             <Check
@@ -279,6 +312,34 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
                   <div className="flex items-center gap-2 text-sm text-red-600">
                     <AlertCircle className="h-4 w-4" />
                     {errors.indicatorId}
+                  </div>
+                )}
+
+                {/* Informazioni sull'utilizzo dell'indicatore */}
+                {selectedIndicator && (
+                  <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    {isLoadingUsage ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#3a88ff]" />
+                        Caricamento utilizzo...
+                      </div>
+                    ) : indicatorUsage ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                          <span className="text-[#3a88ff]">📊</span>
+                          Team che utilizzano questo indicatore: {indicatorUsage.teamCount}
+                        </div>
+                        {indicatorUsage.teamCount > 0 && (
+                          <div className="text-xs text-slate-600">
+                            <span className="font-medium">Team:</span> {indicatorUsage.teams.map(team => team.name).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-600">
+                        <span className="text-[#3a88ff]">📊</span> Nessun team utilizza attualmente questo indicatore
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
