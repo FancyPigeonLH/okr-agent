@@ -38,14 +38,64 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Estrai i team unici
-    const uniqueTeams = new Set(keyResultTeams.map(kr => kr.objective.team.id))
-    const teamCount = uniqueTeams.size
-
-    // Ottieni anche i dettagli dei team per mostrare i nomi
-    const teams = await prisma.team.findMany({
+    // Conta i team che usano questo indicatore come KPI (rischi)
+    const riskTeams = await prisma.risk.findMany({
       where: {
-        id: { in: Array.from(uniqueTeams) },
+        indicatorId: indicatorId,
+        deletedAt: null,
+        keyResult: {
+          deletedAt: null,
+          objective: {
+            deletedAt: null,
+            team: {
+              companyId: companyId,
+              deletedAt: null
+            }
+          }
+        }
+      },
+      include: {
+        keyResult: {
+          include: {
+            objective: {
+              include: {
+                team: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Estrai i team unici per Key Result
+    const uniqueKeyResultTeams = new Set(keyResultTeams.map(kr => kr.objective.team.id))
+    const keyResultTeamCount = uniqueKeyResultTeams.size
+
+    // Estrai i team unici per KPI
+    const uniqueRiskTeams = new Set(riskTeams.map(risk => risk.keyResult.objective.team.id))
+    const kpiTeamCount = uniqueRiskTeams.size
+
+    // Combina tutti i team unici per il conteggio totale
+    const allUniqueTeams = new Set([...Array.from(uniqueKeyResultTeams), ...Array.from(uniqueRiskTeams)])
+    const totalTeamCount = allUniqueTeams.size
+
+    // Ottieni i dettagli dei team per Key Result
+    const keyResultTeamDetails = await prisma.team.findMany({
+      where: {
+        id: { in: Array.from(uniqueKeyResultTeams) },
+        companyId: companyId,
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    })
+
+    // Ottieni i dettagli dei team per KPI
+    const kpiTeamDetails = await prisma.team.findMany({
+      where: {
+        id: { in: Array.from(uniqueRiskTeams) },
         companyId: companyId,
         deletedAt: null
       },
@@ -56,8 +106,11 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({
-      teamCount,
-      teams: teams.map(team => ({ id: team.id, name: team.name }))
+      keyResultTeamCount,
+      kpiTeamCount,
+      totalTeamCount,
+      keyResultTeams: keyResultTeamDetails.map(team => ({ id: team.id, name: team.name })),
+      kpiTeams: kpiTeamDetails.map(team => ({ id: team.id, name: team.name }))
     })
 
   } catch (error) {

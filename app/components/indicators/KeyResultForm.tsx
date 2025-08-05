@@ -72,7 +72,13 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
   const [objectiveOpen, setObjectiveOpen] = useState(false)
   const [showIndicatorForm, setShowIndicatorForm] = useState(false)
   const [isCreatingIndicator, setIsCreatingIndicator] = useState(false)
-  const [indicatorUsage, setIndicatorUsage] = useState<{ teamCount: number; teams: Array<{ id: string; name: string }> } | null>(null)
+  const [indicatorUsage, setIndicatorUsage] = useState<{ 
+    keyResultTeamCount: number; 
+    kpiTeamCount: number; 
+    totalTeamCount: number; 
+    keyResultTeams: Array<{ id: string; name: string }>; 
+    kpiTeams: Array<{ id: string; name: string }> 
+  } | null>(null)
   const [isLoadingUsage, setIsLoadingUsage] = useState(false)
 
   // Carica indicatori e obiettivi
@@ -324,16 +330,38 @@ export function KeyResultForm({ onClose, onSubmit, isLoading = false, companyId 
                         Caricamento utilizzo...
                       </div>
                     ) : indicatorUsage ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <div className="space-y-3">
+                        {/* Contatore totale */}
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 border-b border-slate-200 pb-2">
                           <span className="text-[#3a88ff]">📊</span>
-                          Team che utilizzano questo indicatore: {indicatorUsage.teamCount}
+                          Team che usano questo indicatore: {indicatorUsage.totalTeamCount}
                         </div>
-                        {indicatorUsage.teamCount > 0 && (
-                          <div className="text-xs text-slate-600">
-                            <span className="font-medium">Team:</span> {indicatorUsage.teams.map(team => team.name).join(', ')}
+                        
+                        {/* Dettaglio OKR */}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <span className="text-green-600">🎯</span>
+                            OKR: {indicatorUsage.keyResultTeamCount}
                           </div>
-                        )}
+                          {indicatorUsage.keyResultTeamCount > 0 && (
+                            <div className="text-xs text-slate-600 ml-6">
+                              <span className="font-medium">Team:</span> {indicatorUsage.keyResultTeams.map(team => team.name).join(', ')}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Dettaglio KPI */}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <span className="text-orange-600">⚠️</span>
+                            KPI: {indicatorUsage.kpiTeamCount}
+                          </div>
+                          {indicatorUsage.kpiTeamCount > 0 && (
+                            <div className="text-xs text-slate-600 ml-6">
+                              <span className="font-medium">Team:</span> {indicatorUsage.kpiTeams.map(team => team.name).join(', ')}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className="text-sm text-slate-600">
